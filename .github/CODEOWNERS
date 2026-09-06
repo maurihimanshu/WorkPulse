@@ -1,0 +1,24 @@
+# Global code owners for WorkPulse
+* @maurihimanshu @himanshumauri @githubofhimanshu
+
+# CI/CD and GitHub Configurations
+.github/ @maurihimanshu @himanshumauri @githubofhimanshu
+
+# Core logic and ML engine
+src/core/ @maurihimanshu @himanshumauri @githubofhimanshu
+
+# Infrastructure (OS monitors, encrypted storage)
+src/infrastructure/ @maurihimanshu @himanshumauri @githubofhimanshu
+
+# Presentation and Qt UI
+src/presentation/ @maurihimanshu @himanshumauri @githubofhimanshu
+
+# Packaging and configuration
+pyproject.toml @maurihimanshu @himanshumauri @githubofhimanshu
+setup.py @maurihimanshu @himanshumauri @githubofhimanshu
+requirements.txt @maurihimanshu @himanshumauri @githubofhimanshu
+
+# Documentation
+docs/ @maurihimanshu @himanshumauri @githubofhimanshu
+README.md @maurihimanshu @himanshumauri @githubofhimanshu
+SECURITY.md @maurihimanshu @himanshumauri @githubofhimanshu

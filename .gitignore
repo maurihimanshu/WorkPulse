@@ -126,7 +126,42 @@ samconfig.toml
 .gcloud/
 
 
-#Project level files
-src/ai_work_assistant.egg-info/
-*__pycache__*
+# Project level files
 data/
+logs/
+*.log
+
+# Sensitive security files & encryption keys
+*.key
+*.key.bak
+.encryption_key
+*.enc
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Packaging
+*.egg-info/
+src/*.egg-info/
+*__pycache__*
+
+# Java & Maven artifacts
+target/
+**/target/
+backend/target/
+*.class
+*.jar
+*.war
+*.ear
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+
+# Frontend Node artifacts
+frontend/node_modules/
+frontend/dist/
