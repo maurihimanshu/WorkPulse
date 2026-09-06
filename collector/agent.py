@@ -117,7 +117,12 @@ class CollectorAgent:
                 system_is_idle = (idle_sec >= self.idle_threshold) or locked
 
                 window_info = self.monitor.get_active_window_info()
-                if isinstance(window_info, tuple):
+                if isinstance(window_info, dict):
+                    title = window_info.get('window_title', 'Unknown')
+                    app = window_info.get('app_name', 'Unknown')
+                    pid = window_info.get('process_id', 0)
+                    exe = window_info.get('executable_path', '')
+                elif isinstance(window_info, tuple):
                     if len(window_info) >= 4:
                         title, app, pid, exe = window_info[:4]
                     elif len(window_info) == 2:
