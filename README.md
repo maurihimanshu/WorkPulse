@@ -73,8 +73,15 @@ WorkPulse is designed with a high-performance multi-tier architecture:
   * **Timeline**: Searchable, filterable activity history with quick date pickers (Today, Yesterday, Last 7 Days, All Time) and deletion actions.
   * **Settings**: Real-time adjustable idle threshold slider, polling frequency selector, category keyword mappings, and data clearance.
   * **Profile**: Personal productivity targets, daily focus goal progress bar, working hours, and instant Dark/Light theme switching.
+* **📌 Taskbar System Tray & Quick-Action Dialog**:
+  * Runs quietly in the Windows Taskbar Notification Area ("hidden icons" tray) via lightweight `pystray`.
+  * Left-clicking the tray icon opens a compact dark-themed status dialog showing version `0.2.0`, live foreground tracking status, and one-click actions: **Open Dashboard**, **Pause/Resume**, **Start on Boot**, and **Close to Tray**.
+  * Right-click context menu provides instant controls and graceful exit.
+* **🚀 Computer Boot Autostart (Silent Launch)**:
+  * One-click autostart configuration for Windows (Registry `HKCU\...\Run`), Linux (`~/.config/autostart`), and macOS (`LaunchAgents`).
+  * On Windows boot, runs completely silently in the background via `pythonw.exe` without opening command prompt windows.
 * **🌐 Zero-Friction Browser Launch**:
-  * Running `python run.py` automatically initializes the backend, starts the OS collector, and launches your default web browser to `http://localhost:8080`.
+  * Running `python run.py` automatically initializes the backend, starts the OS collector, launches the system tray icon, and opens your default web browser to `http://localhost:8080`.
 
 ---
 
