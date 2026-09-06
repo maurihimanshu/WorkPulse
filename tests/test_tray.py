@@ -12,8 +12,8 @@ def test_create_tray_icon_image():
 
 def test_tray_app_initialization():
     exit_mock = MagicMock()
-    app = WorkPulseTrayApp(api_url="http://localhost:8080", on_exit_callback=exit_mock)
-    assert app.api_url == "http://localhost:8080"
+    app = WorkPulseTrayApp(api_url="http://localhost:9876", on_exit_callback=exit_mock)
+    assert app.api_url == "http://localhost:9876"
     assert app.is_monitoring is True
     assert app._running is True
 

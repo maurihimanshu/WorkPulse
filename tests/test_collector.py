@@ -38,8 +38,8 @@ def test_create_macos_monitor():
 
 
 def test_collector_agent_initialization():
-    agent = CollectorAgent(api_url="http://localhost:8080", idle_threshold=60.0, poll_interval=1.0)
-    assert agent.api_url == "http://localhost:8080"
+    agent = CollectorAgent(api_url="http://localhost:9876", idle_threshold=60.0, poll_interval=1.0)
+    assert agent.api_url == "http://localhost:9876"
     assert agent.idle_threshold == 60.0
     assert agent.poll_interval == 1.0
     assert agent.current_app == "Unknown"
@@ -62,7 +62,7 @@ def test_collector_outbox_buffering():
 
 
 def test_collector_outbox_flushing():
-    agent = CollectorAgent(api_url="http://localhost:8080")
+    agent = CollectorAgent(api_url="http://localhost:9876")
     agent.outbox = [{"appName": "code.exe", "activeTime": 50.0}]
     # Mock _post_json to simulate success
     agent._post_json = MagicMock(return_value=True)

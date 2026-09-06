@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """WorkPulse Multi-Platform Distribution Packager.
 
-Builds standalone release packages for:
-- Windows: WorkPulse-v{version}-windows-x64.zip
+Builds self-contained, zero-dependency release packages for:
+- Windows: WorkPulse-v{version}-windows-x64.zip (includes WorkPulse.exe + bundled JRE 21)
 - Linux:   WorkPulse-v{version}-linux-x64.tar.gz
 - macOS:   WorkPulse-v{version}-macos-universal.tar.gz
 Calculates SHA-256 checksums for release verification.
@@ -11,6 +11,7 @@ Calculates SHA-256 checksums for release verification.
 import hashlib
 import os
 import shutil
+import subprocess
 import sys
 import tarfile
 import zipfile
@@ -50,24 +51,134 @@ def calculate_sha256(filepath: Path) -> str:
     return hasher.hexdigest()
 
 
+def find_or_build_jre(target_jre_dir: Path) -> bool:
+    """Ensure a minimal, self-contained private JRE exists at target_jre_dir."""
+    java_exe = "java.exe" if sys.platform == "win32" else "java"
+    if (target_jre_dir / "bin" / java_exe).exists():
+        return True
+
+    # 1. Check if cached / prebuilt JRE exists in dist/jre or dist/test_jre
+    for candidate in [DIST_DIR / "jre", DIST_DIR / "test_jre"]:
+        if (candidate / "bin" / java_exe).exists():
+            print(f"[INFO] Bundling private JRE from {candidate.name} into package...")
+            shutil.copytree(candidate, target_jre_dir, dirs_exist_ok=True)
+            javaw_src = target_jre_dir / "bin" / "javaw.exe"
+            runtime_dst = target_jre_dir / "bin" / "workpulse-runtime.exe"
+            if javaw_src.exists() and not runtime_dst.exists():
+                shutil.copy2(javaw_src, runtime_dst)
+            return True
+
+    # 2. Attempt to generate via jlink
+    jlink_name = "jlink.exe" if sys.platform == "win32" else "jlink"
+    jlink_candidates = [
+        Path(os.environ.get("JAVA_HOME", "")) / "bin" / jlink_name,
+        Path(r"C:\Program Files\Java\jdk-21.0.11\bin\jlink.exe"),
+        Path(shutil.which(jlink_name) or ""),
+    ]
+    jlink_bin = None
+    for jc in jlink_candidates:
+        if jc and jc.exists() and jc.is_file():
+            jlink_bin = str(jc)
+            break
+
+    if not jlink_bin:
+        print("[WARN] jlink executable not found. Proceeding without embedded JRE.")
+        return False
+
+    modules = [
+        "java.base", "java.compiler", "java.desktop", "java.instrument",
+        "java.management", "java.naming", "java.net.http", "java.prefs",
+        "java.rmi", "java.scripting", "java.security.jgss", "java.security.sasl",
+        "java.sql", "java.sql.rowset", "java.transaction.xa", "java.xml",
+        "jdk.crypto.ec", "jdk.httpserver", "jdk.unsupported", "jdk.management",
+    ]
+    cmd = [
+        jlink_bin,
+        "--no-header-files",
+        "--no-man-pages",
+        "--strip-debug",
+        "--add-modules", ",".join(modules),
+        "--output", str(target_jre_dir),
+    ]
+    print(f"[INFO] Generating minimal private Java 21 runtime via jlink...")
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    if res.returncode == 0 and (target_jre_dir / "bin" / java_exe).exists():
+        print("[INFO] Embedded private JRE successfully created.")
+        # Ensure branded workpulse-runtime.exe exists for windowless, clean process identification
+        javaw_src = target_jre_dir / "bin" / "javaw.exe"
+        runtime_dst = target_jre_dir / "bin" / "workpulse-runtime.exe"
+        if javaw_src.exists() and not runtime_dst.exists():
+            shutil.copy2(javaw_src, runtime_dst)
+        return True
+    else:
+        print(f"[WARN] jlink failed: {res.stderr.strip() or res.stdout.strip()}")
+        return False
+
+
+def compile_inno_setup(version: str) -> Path | None:
+    """Compile Inno Setup script into an enterprise Windows Setup installer."""
+    iss_file = ROOT_DIR / "installer" / "WorkPulse.iss"
+    if not iss_file.exists():
+        return None
+
+    iscc_candidates = [
+        Path(r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe"),
+        Path(r"C:\Program Files\Inno Setup 6\ISCC.exe"),
+        Path(shutil.which("ISCC.exe") or shutil.which("iscc") or ""),
+    ]
+    iscc_bin = None
+    for cand in iscc_candidates:
+        if cand and cand.exists() and cand.is_file():
+            iscc_bin = str(cand)
+            break
+
+    if not iscc_bin:
+        print("[INFO] Inno Setup compiler (ISCC.exe) not found. Skipping installer generation.")
+        return None
+
+    cmd = [
+        iscc_bin,
+        f"/DAppVersion={version}",
+        str(iss_file),
+    ]
+    print(f"[INFO] Compiling Windows Enterprise Setup Installer with Inno Setup...")
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    installer_path = DIST_DIR / f"{APP_NAME}-v{version}-windows-x64-Setup.exe"
+    if installer_path.exists():
+        print(f"[SUCCESS] Inno Setup installer generated: {installer_path.name}")
+        return installer_path
+    else:
+        print(f"[WARN] Inno Setup output not found ({res.stderr.strip() or res.stdout.strip()})")
+        return None
+
+
 def create_windows_bundle(bundle_dir: Path):
     """Create Windows-specific launch scripts."""
-    # 1. Interactive batch launcher
+    # 1. Interactive batch launcher (launches WorkPulse.exe directly detached)
     bat_content = """@echo off
 title WorkPulse
-echo Starting WorkPulse...
+if exist "%~dp0WorkPulse.exe" (
+    start "" "%~dp0WorkPulse.exe" %*
+    exit /b 0
+)
+if exist "%~dp0jre\\bin\\javaw.exe" (
+    set "PATH=%~dp0jre\\bin;%PATH%"
+)
 python run.py %*
 if errorlevel 1 (
-    echo.
-    echo [ERROR] Failed to run WorkPulse. Please ensure Java 21+ and Python 3.9+ are installed.
+    echo [ERROR] Failed to run WorkPulse.
     pause
 )
 """
     (bundle_dir / "start_workpulse.bat").write_text(bat_content, encoding="utf-8")
 
-    # 2. Silent VBS launcher (runs pythonw without opening any cmd prompt)
+    # 2. Silent VBS launcher (runs without opening any cmd prompt)
     vbs_content = """Set WshShell = CreateObject("WScript.Shell")
-WshShell.Run "pythonw.exe run.py --tray", 0, False
+If CreateObject("Scripting.FileSystemObject").FileExists("WorkPulse.exe") Then
+    WshShell.Run "WorkPulse.exe --tray", 0, False
+Else
+    WshShell.Run "pythonw.exe run.py --tray", 0, False
+End If
 """
     (bundle_dir / "start_workpulse_silent.vbs").write_text(vbs_content, encoding="utf-8")
 
@@ -78,7 +189,17 @@ def create_unix_bundle(bundle_dir: Path):
 set -e
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
-python3 run.py "$@"
+
+# Prioritize bundled JRE if present
+if [ -d "$DIR/jre/bin" ]; then
+    export PATH="$DIR/jre/bin:$PATH"
+fi
+
+if [ -f "$DIR/WorkPulse" ]; then
+    exec "$DIR/WorkPulse" "$@"
+else
+    exec python3 run.py "$@"
+fi
 """
     sh_file = bundle_dir / "start_workpulse.sh"
     sh_file.write_text(sh_content, encoding="utf-8")
@@ -121,6 +242,22 @@ def build_package(platform: str):
 
     if "windows" in platform:
         create_windows_bundle(bundle_root)
+
+        # 1. Include standalone WorkPulse.exe if available
+        exe_candidates = [
+            DIST_DIR / "bin" / f"{APP_NAME}.exe",
+            DIST_DIR / f"{APP_NAME}-v{VERSION}-windows-x64.exe",
+            DIST_DIR / f"{APP_NAME}.exe",
+        ]
+        for ec in exe_candidates:
+            if ec.exists():
+                shutil.copy2(ec, bundle_root / f"{APP_NAME}.exe")
+                print(f"[INFO] Included {APP_NAME}.exe into Windows bundle.")
+                break
+
+        # 2. Include private bundled JRE
+        find_or_build_jre(bundle_root / "jre")
+
         zip_path = DIST_DIR / f"{archive_base}.zip"
         print(f"[INFO] Creating zip: {zip_path.name}...")
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -129,10 +266,16 @@ def build_package(platform: str):
                     file_path = Path(root) / f
                     arcname = file_path.relative_to(staging_dir)
                     zf.write(file_path, arcname)
+
+        # 3. Build Windows Inno Setup installer if compiler is available
+        compile_inno_setup(VERSION)
+
         shutil.rmtree(staging_dir)
         return zip_path
     else:
         create_unix_bundle(bundle_root)
+        if sys.platform != "win32":
+            find_or_build_jre(bundle_root / "jre")
         tar_path = DIST_DIR / f"{archive_base}.tar.gz"
         print(f"[INFO] Creating tar.gz: {tar_path.name}...")
         with tarfile.open(tar_path, "w:gz") as tf:
@@ -152,15 +295,17 @@ def main():
         sys.exit(1)
 
     DIST_DIR.mkdir(parents=True, exist_ok=True)
-    platforms = [
-        "windows-x64",
-        "linux-x64",
-        "macos-universal",
-    ]
+    target_platform = sys.argv[2] if len(sys.argv) > 2 else None
+    if target_platform:
+        platforms = [target_platform]
+    elif sys.platform == "win32":
+        platforms = ["windows-x64"]
+    else:
+        platforms = ["linux-x64", "macos-universal"]
 
     checksums = []
     print(f"\n========================================================")
-    print(f"  Packaging {APP_NAME} v{VERSION} for Release")
+    print(f"  Packaging {APP_NAME} v{VERSION} (Zero-Dependency Edition)")
     print(f"========================================================\n")
 
     for p in platforms:
@@ -171,15 +316,13 @@ def main():
         print(f"  [SUCCESS] {pkg_path.name} ({size_mb:.2f} MB)")
         print(f"            SHA-256: {sha}\n")
 
-    # Check if a standalone PyInstaller EXE was built in dist/bin/WorkPulse.exe
-    exe_built = DIST_DIR / "bin" / f"{APP_NAME}.exe"
-    if exe_built.exists():
-        versioned_exe = DIST_DIR / f"{APP_NAME}-v{VERSION}-windows-x64.exe"
-        shutil.copy2(exe_built, versioned_exe)
-        size_mb = versioned_exe.stat().st_size / (1024 * 1024)
-        sha = calculate_sha256(versioned_exe)
-        checksums.append((versioned_exe.name, f"{size_mb:.2f} MB", sha))
-        print(f"  [SUCCESS] {versioned_exe.name} ({size_mb:.2f} MB)")
+    # Check if Windows Setup installer was built
+    setup_built = DIST_DIR / f"{APP_NAME}-v{VERSION}-windows-x64-Setup.exe"
+    if setup_built.exists():
+        size_mb = setup_built.stat().st_size / (1024 * 1024)
+        sha = calculate_sha256(setup_built)
+        checksums.append((setup_built.name, f"{size_mb:.2f} MB", sha))
+        print(f"  [SUCCESS] {setup_built.name} ({size_mb:.2f} MB)")
         print(f"            SHA-256: {sha}\n")
 
     checksum_file = DIST_DIR / "SHA256SUMS.txt"

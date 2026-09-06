@@ -75,7 +75,7 @@ class WorkPulseTrayApp:
 
     def __init__(
         self,
-        api_url: str = "http://localhost:8080",
+        api_url: str = "http://localhost:9876",
         on_exit_callback: Optional[Callable[[], None]] = None,
     ):
         self.api_url = api_url.rstrip("/")

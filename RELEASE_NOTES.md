@@ -22,7 +22,7 @@ WorkPulse v0.2.0 is a complete, ground-up overhaul that transitions from legacy 
 * **Resilient Outbox Buffer**: Telemetry is buffered locally during offline intervals and safely flushed when the backend is accessible.
 
 ### 3. 🎨 Modern React Presentation Layer (Embedded in Software)
-* **Single-Page Application**: Bundled directly into the backend distribution and auto-launched at `http://localhost:8080`.
+* **Single-Page Application**: Bundled directly into the backend distribution and auto-launched at `http://localhost:9876`.
 * **Interactive Dashboard**: Real-time telemetry card, active vs. idle duration cards, productivity score gauge, 24-hour distribution bar chart, and ranked top applications.
 * **Activity Timeline**: Searchable and filterable history with date range selectors (Today, Yesterday, 7 Days, All Time) and deletion controls.
 * **User Profile & Goals**: Set daily focus hours, working schedule, and live target progress bar.
