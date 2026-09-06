@@ -109,14 +109,6 @@ jobs:
             --add-modules java.base,java.compiler,java.desktop,java.instrument,java.management,java.naming,java.net.http,java.prefs,java.rmi,java.scripting,java.security.jgss,java.security.sasl,java.sql,java.sql.rowset,java.transaction.xa,java.xml,jdk.crypto.ec,jdk.httpserver,jdk.unsupported,jdk.management `
             --output dist/jre
 
-      - name: Stage Versioned Executable
-        shell: bash
-        run: |
-          VERSION="${{ github.event.inputs.version || github.ref_name }}"
-          VERSION="${VERSION#v}"
-          mkdir -p dist
-          cp dist/bin/WorkPulse.exe "dist/WorkPulse-v${VERSION}-windows-x64.exe"
-
       - name: Generate Multi-Platform Installables & Checksums
         run: python scripts/package.py ${{ github.event.inputs.version || github.ref_name }}
 
@@ -128,7 +120,7 @@ jobs:
           files: |
             dist/*.zip
             dist/*.tar.gz
-            dist/*.exe
+            dist/*-Setup.exe
             dist/SHA256SUMS.txt
           body_path: RELEASE_NOTES.md
           generate_release_notes: true

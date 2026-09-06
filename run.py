@@ -66,8 +66,8 @@ def show_fatal_error(title: str, message: str):
 
 
 def get_java_executable() -> str | None:
-    """Locate Java executable, prioritizing windowless javaw.exe and private bundled JRE."""
-    exe_names = ["javaw.exe", "java.exe"] if sys.platform == "win32" else ["java"]
+    """Locate Java executable, prioritizing branded workpulse-runtime.exe, javaw.exe, and private bundled JRE."""
+    exe_names = ["workpulse-runtime.exe", "javaw.exe", "java.exe"] if sys.platform == "win32" else ["workpulse-runtime", "java"]
     for exe_name in exe_names:
         search_paths = [
             BUNDLE_DIR / "jre" / "bin" / exe_name,
@@ -198,7 +198,13 @@ def main():
     jar_path = find_backend_jar()
     java_bin = get_java_executable()
     if jar_path and java_bin:
-        backend_cmd = [java_bin, "-jar", str(jar_path), f"--server.port={args.port}"]
+        backend_cmd = [
+            java_bin,
+            "-jar",
+            str(jar_path),
+            f"--server.port={args.port}",
+            "--server.address=127.0.0.1",
+        ]
         backend_cwd = ROOT_DIR
         print(f"[INFO] Starting backend via JAR: {jar_path.name}")
         print(f"[INFO] Using Java runtime: {java_bin}")

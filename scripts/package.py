@@ -98,12 +98,14 @@ def find_or_build_jre(target_jre_dir: Path) -> bool:
     ]
     print(f"[INFO] Generating minimal private Java 21 runtime via jlink...")
     res = subprocess.run(cmd, capture_output=True, text=True)
-    if res.returncode == 0:
         print("[INFO] Embedded private JRE successfully created.")
-        return True
-    else:
-        print(f"[WARN] jlink failed ({res.stderr.strip()}). Proceeding without bundled JRE.")
-        return False
+
+    # Ensure branded workpulse-runtime.exe exists for windowless, clean process identification
+    javaw_src = target_jre_dir / "bin" / "javaw.exe"
+    runtime_dst = target_jre_dir / "bin" / "workpulse-runtime.exe"
+    if javaw_src.exists() and not runtime_dst.exists():
+        shutil.copy2(javaw_src, runtime_dst)
+    return True
 
 
 def compile_inno_setup(version: str) -> Path | None:
@@ -302,17 +304,6 @@ def main():
         sha = calculate_sha256(pkg_path)
         checksums.append((pkg_path.name, f"{size_mb:.2f} MB", sha))
         print(f"  [SUCCESS] {pkg_path.name} ({size_mb:.2f} MB)")
-        print(f"            SHA-256: {sha}\n")
-
-    # Check if standalone WorkPulse.exe was built
-    exe_built = DIST_DIR / "bin" / f"{APP_NAME}.exe"
-    if exe_built.exists():
-        versioned_exe = DIST_DIR / f"{APP_NAME}-v{VERSION}-windows-x64.exe"
-        shutil.copy2(exe_built, versioned_exe)
-        size_mb = versioned_exe.stat().st_size / (1024 * 1024)
-        sha = calculate_sha256(versioned_exe)
-        checksums.append((versioned_exe.name, f"{size_mb:.2f} MB", sha))
-        print(f"  [SUCCESS] {versioned_exe.name} ({size_mb:.2f} MB)")
         print(f"            SHA-256: {sha}\n")
 
     # Check if Windows Setup installer was built
