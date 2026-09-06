@@ -112,6 +112,11 @@ jobs:
       - name: Generate Multi-Platform Installables & Checksums
         run: python scripts/package.py ${{ github.event.inputs.version || github.ref_name }}
 
+      - name: Clean Obsolete Assets from GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/clean_release_assets.py "${{ github.repository }}" "${{ github.event.inputs.version || github.ref_name }}"
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
