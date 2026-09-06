@@ -2,6 +2,7 @@
 
 import logging
 import os
+import shutil
 import subprocess
 from typing import Dict, Union
 
@@ -16,30 +17,30 @@ class MacOSMonitor(BaseMonitor):
     def __init__(self) -> None:
         """Initialize macOS monitor."""
         try:
-            # Check for required tools
             self._check_dependencies()
         except Exception as e:
-            logger.error(f"Error initializing macOS monitor: {e}")
+            logger.warning(f"Error initializing macOS monitor: {e}")
 
     def _check_dependencies(self) -> None:
         """Check if required tools are available."""
-        try:
-            subprocess.run(["osascript", "--version"], capture_output=True)
-        except FileNotFoundError:
-            logger.error("Required tool not found: osascript")
-            raise RuntimeError("Missing required tool: osascript")
+        if not shutil.which("osascript"):
+            logger.warning("Optional macOS tool not found: osascript")
 
     def get_active_window_info(self) -> Dict[str, Union[str, int]]:
         """Get information about the currently active window.
 
         Returns:
-            dict: Window information including:
-                - app_name: Name of the application (str)
-                - window_title: Title of the window (str)
-                - process_id: Process ID (int)
-                - executable_path: Path to the executable (str)
+            dict: Window information
         """
         try:
+            if not shutil.which("osascript"):
+                return {
+                    "app_name": "Unknown",
+                    "window_title": "Unknown",
+                    "process_id": 0,
+                    "executable_path": "",
+                }
+
             # Get active application info using AppleScript
             script = """
                 tell application "System Events"
@@ -56,7 +57,11 @@ class MacOSMonitor(BaseMonitor):
             """
 
             result = (
-                subprocess.check_output(["osascript", "-e", script]).decode().strip()
+                subprocess.check_output(
+                    ["osascript", "-e", script], stderr=subprocess.DEVNULL, timeout=2
+                )
+                .decode()
+                .strip()
             )
 
             # Parse result
@@ -70,7 +75,7 @@ class MacOSMonitor(BaseMonitor):
             }
 
         except Exception as e:
-            logger.error(f"Error getting active window info: {e}")
+            logger.debug(f"Error getting active window info: {e}")
             return {
                 "app_name": "Unknown",
                 "window_title": "Unknown",
@@ -85,7 +90,10 @@ class MacOSMonitor(BaseMonitor):
             float: Idle time in seconds
         """
         try:
-            # Get idle time using CGEventSourceSecondsSinceLastEventType
+            if not shutil.which("osascript"):
+                return 0.0
+
+            # Get idle time using AppleScript
             script = """
                 tell application "System Events"
                     return idle time
@@ -93,10 +101,38 @@ class MacOSMonitor(BaseMonitor):
             """
 
             idle_time = float(
-                subprocess.check_output(["osascript", "-e", script]).decode().strip()
+                subprocess.check_output(
+                    ["osascript", "-e", script], stderr=subprocess.DEVNULL, timeout=2
+                )
+                .decode()
+                .strip()
             )
             return idle_time
 
         except Exception as e:
-            logger.error(f"Error getting idle time: {e}")
+            logger.debug(f"Error getting idle time: {e}")
             return 0.0
+
+    def is_screen_locked(self) -> bool:
+        """Check if screen is locked.
+
+        Returns:
+            bool: True if screen is locked, False otherwise
+        """
+        try:
+            result = subprocess.run(
+                [
+                    "python3",
+                    "-c",
+                    "import Quartz; print(Quartz.CGSessionCopyCurrentDictionary().get('CGSSessionScreenIsLocked', 0))",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=1,
+            )
+            if result.returncode == 0 and result.stdout.strip() == "1":
+                return True
+        except Exception:
+            pass
+        return False
+

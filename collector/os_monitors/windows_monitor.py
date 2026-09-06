@@ -3,27 +3,45 @@
 import ctypes
 import logging
 import os
-from ctypes import wintypes, WINFUNCTYPE, c_bool
+import sys
 from typing import Dict, Tuple, Union
-
-import win32gui
-import win32process
-
-from .base_monitor import BaseMonitor
 
 logger = logging.getLogger(__name__)
 
+is_windows = sys.platform == "win32"
+
+try:
+    from ctypes import wintypes, WINFUNCTYPE, c_bool
+except ImportError:
+    wintypes = None
+    WINFUNCTYPE = getattr(ctypes, "CFUNCTYPE", None)
+    c_bool = ctypes.c_bool
+
+try:
+    import win32gui
+    import win32process
+except ImportError:
+    win32gui = None
+    win32process = None
+
+from .base_monitor import BaseMonitor
+
 
 # Define Windows types and structures
-class LASTINPUTINFO(ctypes.Structure):
-    _fields_ = [
-        ("cbSize", ctypes.c_uint),
-        ("dwTime", ctypes.c_uint),
-    ]
+if wintypes is not None:
+    class LASTINPUTINFO(ctypes.Structure):
+        _fields_ = [
+            ("cbSize", ctypes.c_uint),
+            ("dwTime", ctypes.c_uint),
+        ]
 
-
-# Define callback type for EnumWindows
-WNDENUMPROC = WINFUNCTYPE(c_bool, wintypes.HWND, wintypes.LPARAM)
+    if WINFUNCTYPE is not None:
+        WNDENUMPROC = WINFUNCTYPE(c_bool, wintypes.HWND, wintypes.LPARAM)
+    else:
+        WNDENUMPROC = None
+else:
+    LASTINPUTINFO = None
+    WNDENUMPROC = None
 
 
 class WindowsMonitor(BaseMonitor):
@@ -31,6 +49,8 @@ class WindowsMonitor(BaseMonitor):
 
     def __init__(self) -> None:
         """Initialize Windows monitor."""
+        if not is_windows or win32gui is None or not hasattr(ctypes, "windll"):
+            raise NotImplementedError("WindowsMonitor requires Windows and pywin32")
         try:
             self.user32 = ctypes.windll.user32
             self.kernel32 = ctypes.windll.kernel32

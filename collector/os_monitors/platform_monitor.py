@@ -5,9 +5,6 @@ import sys
 from typing import Optional, Tuple
 
 from .base_monitor import BaseMonitor
-from .linux_monitor import LinuxMonitor
-from .macos_monitor import MacOSMonitor
-from .windows_monitor import WindowsMonitor
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +22,13 @@ def create_platform_monitor() -> BaseMonitor:
 
     try:
         if platform == "win32":
+            from .windows_monitor import WindowsMonitor
             return WindowsMonitor()
         elif platform == "linux":
+            from .linux_monitor import LinuxMonitor
             return LinuxMonitor()
         elif platform == "darwin":
+            from .macos_monitor import MacOSMonitor
             return MacOSMonitor()
         else:
             raise NotImplementedError(f"Platform '{platform}' is not supported")

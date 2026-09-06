@@ -2,6 +2,7 @@
 
 import logging
 import os
+import shutil
 import subprocess
 from typing import Dict, Union
 
@@ -16,54 +17,60 @@ class LinuxMonitor(BaseMonitor):
     def __init__(self) -> None:
         """Initialize Linux monitor."""
         try:
-            # Check for required tools
             self._check_dependencies()
         except Exception as e:
-            logger.error(f"Error initializing Linux monitor: {e}")
+            logger.warning(f"Error initializing Linux monitor: {e}")
 
     def _check_dependencies(self) -> None:
         """Check if required tools are available."""
-        try:
-            subprocess.run(["xdotool", "--version"], capture_output=True)
-            subprocess.run(["xprintidle"], capture_output=True)
-        except FileNotFoundError:
-            logger.error("Required tools not found: xdotool, xprintidle")
-            raise RuntimeError("Missing required tools: xdotool, xprintidle")
+        missing = [tool for tool in ("xdotool", "xprintidle") if not shutil.which(tool)]
+        if missing:
+            logger.warning(f"Optional Linux tools not found: {', '.join(missing)}")
 
     def get_active_window_info(self) -> Dict[str, Union[str, int]]:
         """Get information about the currently active window.
 
         Returns:
-            dict: Window information including:
-                - app_name: Name of the application (str)
-                - window_title: Title of the window (str)
-                - process_id: Process ID (int)
-                - executable_path: Path to the executable (str)
+            dict: Window information
         """
         try:
+            if not shutil.which("xdotool"):
+                return {
+                    "app_name": "Unknown",
+                    "window_title": "Unknown",
+                    "process_id": 0,
+                    "executable_path": "",
+                }
+
             # Get active window ID
             window_id = (
-                subprocess.check_output(["xdotool", "getactivewindow"]).decode().strip()
+                subprocess.check_output(
+                    ["xdotool", "getactivewindow"], stderr=subprocess.DEVNULL, timeout=2
+                )
+                .decode()
+                .strip()
             )
 
             # Get window title
             title = (
-                subprocess.check_output(["xdotool", "getwindowname", window_id])
+                subprocess.check_output(
+                    ["xdotool", "getwindowname", window_id], stderr=subprocess.DEVNULL, timeout=2
+                )
                 .decode()
                 .strip()
             )
 
             # Get window PID
             pid = (
-                subprocess.check_output(["xdotool", "getwindowpid", window_id])
+                subprocess.check_output(
+                    ["xdotool", "getwindowpid", window_id], stderr=subprocess.DEVNULL, timeout=2
+                )
                 .decode()
                 .strip()
             )
 
             # Get executable path
             executable_path = os.path.realpath(f"/proc/{pid}/exe")
-
-            # Get application name
             app_name = os.path.basename(executable_path)
 
             return {
@@ -74,7 +81,7 @@ class LinuxMonitor(BaseMonitor):
             }
 
         except Exception as e:
-            logger.error(f"Error getting active window info: {e}")
+            logger.debug(f"Error getting active window info: {e}")
             return {
                 "app_name": "Unknown",
                 "window_title": "Unknown",
@@ -89,10 +96,38 @@ class LinuxMonitor(BaseMonitor):
             float: Idle time in seconds
         """
         try:
+            if not shutil.which("xprintidle"):
+                return 0.0
             idle_time = (
-                float(subprocess.check_output(["xprintidle"]).decode().strip()) / 1000.0
-            )  # Convert from milliseconds to seconds
+                float(
+                    subprocess.check_output(
+                        ["xprintidle"], stderr=subprocess.DEVNULL, timeout=2
+                    ).decode().strip()
+                )
+                / 1000.0
+            )
             return idle_time
         except Exception as e:
-            logger.error(f"Error getting idle time: {e}")
+            logger.debug(f"Error getting idle time: {e}")
             return 0.0
+
+    def is_screen_locked(self) -> bool:
+        """Check if screen is locked.
+
+        Returns:
+            bool: True if screen is locked, False otherwise
+        """
+        try:
+            if shutil.which("loginctl"):
+                res = subprocess.run(
+                    ["loginctl", "show-session", "self", "-p", "LockedHint"],
+                    capture_output=True,
+                    text=True,
+                    timeout=1,
+                )
+                if res.returncode == 0 and "LockedHint=yes" in res.stdout:
+                    return True
+        except Exception:
+            pass
+        return False
+

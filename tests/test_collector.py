@@ -13,6 +13,30 @@ def test_create_platform_monitor():
     assert isinstance(monitor, BaseMonitor)
 
 
+def test_create_linux_monitor():
+    with patch("sys.platform", "linux"):
+        from collector.os_monitors.linux_monitor import LinuxMonitor
+        monitor = create_platform_monitor()
+        assert isinstance(monitor, LinuxMonitor)
+        info = monitor.get_active_window_info()
+        assert isinstance(info, dict)
+        assert "app_name" in info
+        assert isinstance(monitor.get_idle_time(), (int, float))
+        assert isinstance(monitor.is_screen_locked(), bool)
+
+
+def test_create_macos_monitor():
+    with patch("sys.platform", "darwin"):
+        from collector.os_monitors.macos_monitor import MacOSMonitor
+        monitor = create_platform_monitor()
+        assert isinstance(monitor, MacOSMonitor)
+        info = monitor.get_active_window_info()
+        assert isinstance(info, dict)
+        assert "app_name" in info
+        assert isinstance(monitor.get_idle_time(), (int, float))
+        assert isinstance(monitor.is_screen_locked(), bool)
+
+
 def test_collector_agent_initialization():
     agent = CollectorAgent(api_url="http://localhost:8080", idle_threshold=60.0, poll_interval=1.0)
     assert agent.api_url == "http://localhost:8080"
