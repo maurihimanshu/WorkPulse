@@ -16,11 +16,30 @@ import tarfile
 import zipfile
 from pathlib import Path
 
-VERSION = "0.2.0"
+VERSION = os.environ.get("RELEASE_VERSION", "0.2.0")
+if len(sys.argv) > 1 and sys.argv[1].strip():
+    raw_v = sys.argv[1].strip()
+    VERSION = raw_v.lstrip("v") if raw_v.startswith("v") else raw_v
+
 APP_NAME = "WorkPulse"
 ROOT_DIR = Path(__file__).parent.parent.resolve()
 DIST_DIR = ROOT_DIR / "dist"
-BACKEND_JAR = ROOT_DIR / "backend" / "target" / f"workpulse-backend-{VERSION}.jar"
+
+
+def find_backend_jar() -> Path:
+    target_dir = ROOT_DIR / "backend" / "target"
+    if target_dir.exists():
+        jars = [
+            j for j in target_dir.glob("workpulse-backend-*.jar")
+            if not j.name.endswith(".original")
+        ]
+        if jars:
+            matched = [j for j in jars if VERSION in j.name]
+            return matched[0] if matched else jars[0]
+    return target_dir / f"workpulse-backend-{VERSION}.jar"
+
+
+BACKEND_JAR = find_backend_jar()
 
 
 def calculate_sha256(filepath: Path) -> str:

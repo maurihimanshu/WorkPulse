@@ -2,8 +2,8 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - 'v[0-9]*.[0-9]*.[0-9]*'
   workflow_dispatch:
     inputs:
       version:
@@ -55,15 +55,18 @@ jobs:
         run: mvn clean package -DskipTests
 
       - name: Generate Multi-Platform Installables
-        run: python scripts/package.py
+        run: python scripts/package.py ${{ github.event.inputs.version || github.ref_name }}
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event.inputs.version || github.ref_name }}
+          name: WorkPulse ${{ github.event.inputs.version || github.ref_name }}
           files: |
             dist/*.zip
             dist/*.tar.gz
             dist/SHA256SUMS.txt
+          body_path: RELEASE_NOTES.md
           generate_release_notes: true
           draft: false
           prerelease: false
