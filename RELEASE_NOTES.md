@@ -48,9 +48,10 @@ WorkPulse v0.2.0 is a complete, ground-up overhaul that transitions from legacy 
 
 | Package | Platform | Architecture | Size | SHA-256 Checksum |
 |---|---|---|---|---|
-| **`WorkPulse-v0.2.0-windows-x64.zip`** | Windows 10 / 11 | x64 | 52.55 MB | `1b3623f583f6bf653752e5b577ec5c8ba8fd992fa06a863f6081f86b675e44cb` |
-| **`WorkPulse-v0.2.0-macos-universal.tar.gz`** | macOS 12+ (Monterey, Ventura, Sonoma, Sequoia) | Apple Silicon (M1–M4) & Intel | 52.54 MB | `996815ae4d1948cbcfaa18e8564157fdccb8515390e2f1209c861e6e5f3510b8` |
-| **`WorkPulse-v0.2.0-linux-x64.tar.gz`** | Linux (Ubuntu, Debian, Fedora, Arch) | x64 | 52.54 MB | `6585258844a1d687d1cd10533c907be7abae052b89d80363a8857d860e6fb60d` |
+| **`WorkPulse-v0.2.0-windows-x64.exe`** | Windows 10 / 11 (Standalone Executable) | x64 | 30.82 MB | `d1844680327ac7012b6209f1d81d5208e0ce26cd851bd0ee20c985e5f6acdb0d` |
+| **`WorkPulse-v0.2.0-windows-x64.zip`** | Windows 10 / 11 (Full Distribution) | x64 | 52.55 MB | `f1f7b7d0b127b61a9fed2bf1a7b656a862c9bae717b6d5056a24a3cfa9d8b047` |
+| **`WorkPulse-v0.2.0-macos-universal.tar.gz`** | macOS 12+ (Monterey, Ventura, Sonoma, Sequoia) | Apple Silicon (M1–M4) & Intel | 52.54 MB | `a556b65623113f13a28d97f368c97e422a37d015bc9197741641d6ab823c914e` |
+| **`WorkPulse-v0.2.0-linux-x64.tar.gz`** | Linux (Ubuntu, Debian, Fedora, Arch) | x64 | 52.54 MB | `1679354e32891a5821ab3004c4654638f91ca130dce9341e7b9b6f0f80d94ff8` |
 
 ---
 
@@ -58,6 +59,11 @@ WorkPulse v0.2.0 is a complete, ground-up overhaul that transitions from legacy 
 
 ### 🪟 Windows 10 / 11
 
+#### Option A: Standalone Executable (.exe)
+1. Download **`WorkPulse-v0.2.0-windows-x64.exe`**.
+2. Double-click **`WorkPulse.exe`** to run. It embeds the runtime and immediately docks in your Windows Taskbar tray.
+
+#### Option B: Full Bundle (.zip)
 1. **Prerequisites**: Ensure [Java 21+](https://adoptium.net/) and [Python 3.9+](https://www.python.org/downloads/) are installed.
 2. Download and extract **`WorkPulse-v0.2.0-windows-x64.zip`**.
 3. Install collector dependencies:
