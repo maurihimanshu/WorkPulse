@@ -15,8 +15,45 @@ permissions:
   contents: write
 
 jobs:
+  build-windows-exe:
+    name: Build Windows Standalone Executable (.exe)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python Dependencies & PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller psutil cryptography python-dotenv pystray pillow pywin32
+
+      - name: Build WorkPulse Standalone Executable
+        run: |
+          pyinstaller --onefile --noconsole --name WorkPulse --distpath dist/bin run.py
+
+      - name: Stage Versioned Executable
+        shell: bash
+        run: |
+          VERSION="${{ github.event.inputs.version || github.ref_name }}"
+          VERSION="${VERSION#v}"
+          mkdir -p dist
+          cp dist/bin/WorkPulse.exe "dist/WorkPulse-v${VERSION}-windows-x64.exe"
+
+      - name: Upload Windows Executable Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: dist/*.exe
+
   build-and-release:
-    name: Build & Publish Release Assets
+    name: Build Packages & Publish Release
+    needs: build-windows-exe
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -44,17 +81,37 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
+      - name: Download Windows Executable Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-exe
+          path: dist/bin/
+
+      - name: Place Standalone Executable in dist/bin
+        run: |
+          # The artifact downloaded the versioned or WorkPulse.exe
+          # Ensure dist/bin/WorkPulse.exe is in place for scripts/package.py
+          mkdir -p dist/bin
+          if ls dist/bin/*windows-x64.exe 1> /dev/null 2>&1; then
+            cp dist/bin/*windows-x64.exe dist/bin/WorkPulse.exe
+          fi
+
       - name: Build Frontend Production Assets
         working-directory: frontend
         run: |
           npm ci
           npm run build
 
+      - name: Copy Frontend Assets to Backend Static Directory
+        run: |
+          mkdir -p backend/src/main/resources/static
+          cp -r frontend/dist/* backend/src/main/resources/static/
+
       - name: Build Backend Standalone JAR
         working-directory: backend
         run: mvn clean package -DskipTests
 
-      - name: Generate Multi-Platform Installables
+      - name: Generate Multi-Platform Installables & Checksums
         run: python scripts/package.py ${{ github.event.inputs.version || github.ref_name }}
 
       - name: Publish GitHub Release
