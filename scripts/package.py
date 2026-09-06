@@ -106,22 +106,57 @@ def find_or_build_jre(target_jre_dir: Path) -> bool:
         return False
 
 
+def compile_inno_setup(version: str) -> Path | None:
+    """Compile Inno Setup script into an enterprise Windows Setup installer."""
+    iss_file = ROOT_DIR / "installer" / "WorkPulse.iss"
+    if not iss_file.exists():
+        return None
+
+    iscc_candidates = [
+        Path(r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe"),
+        Path(r"C:\Program Files\Inno Setup 6\ISCC.exe"),
+        Path(shutil.which("ISCC.exe") or shutil.which("iscc") or ""),
+    ]
+    iscc_bin = None
+    for cand in iscc_candidates:
+        if cand and cand.exists() and cand.is_file():
+            iscc_bin = str(cand)
+            break
+
+    if not iscc_bin:
+        print("[INFO] Inno Setup compiler (ISCC.exe) not found. Skipping installer generation.")
+        return None
+
+    cmd = [
+        iscc_bin,
+        f"/DAppVersion={version}",
+        str(iss_file),
+    ]
+    print(f"[INFO] Compiling Windows Enterprise Setup Installer with Inno Setup...")
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    installer_path = DIST_DIR / f"{APP_NAME}-v{version}-windows-x64-Setup.exe"
+    if installer_path.exists():
+        print(f"[SUCCESS] Inno Setup installer generated: {installer_path.name}")
+        return installer_path
+    else:
+        print(f"[WARN] Inno Setup output not found ({res.stderr.strip() or res.stdout.strip()})")
+        return None
+
+
 def create_windows_bundle(bundle_dir: Path):
     """Create Windows-specific launch scripts."""
-    # 1. Interactive batch launcher
+    # 1. Interactive batch launcher (launches WorkPulse.exe directly detached)
     bat_content = """@echo off
 title WorkPulse
-echo Starting WorkPulse...
 if exist "%~dp0WorkPulse.exe" (
     start "" "%~dp0WorkPulse.exe" %*
     exit /b 0
 )
-if exist "%~dp0jre\\bin\\java.exe" (
+if exist "%~dp0jre\\bin\\javaw.exe" (
     set "PATH=%~dp0jre\\bin;%PATH%"
 )
 python run.py %*
 if errorlevel 1 (
-    echo.
     echo [ERROR] Failed to run WorkPulse.
     pause
 )
@@ -222,6 +257,10 @@ def build_package(platform: str):
                     file_path = Path(root) / f
                     arcname = file_path.relative_to(staging_dir)
                     zf.write(file_path, arcname)
+
+        # 3. Build Windows Inno Setup installer if compiler is available
+        compile_inno_setup(VERSION)
+
         shutil.rmtree(staging_dir)
         return zip_path
     else:
@@ -274,6 +313,15 @@ def main():
         sha = calculate_sha256(versioned_exe)
         checksums.append((versioned_exe.name, f"{size_mb:.2f} MB", sha))
         print(f"  [SUCCESS] {versioned_exe.name} ({size_mb:.2f} MB)")
+        print(f"            SHA-256: {sha}\n")
+
+    # Check if Windows Setup installer was built
+    setup_built = DIST_DIR / f"{APP_NAME}-v{VERSION}-windows-x64-Setup.exe"
+    if setup_built.exists():
+        size_mb = setup_built.stat().st_size / (1024 * 1024)
+        sha = calculate_sha256(setup_built)
+        checksums.append((setup_built.name, f"{size_mb:.2f} MB", sha))
+        print(f"  [SUCCESS] {setup_built.name} ({size_mb:.2f} MB)")
         print(f"            SHA-256: {sha}\n")
 
     checksum_file = DIST_DIR / "SHA256SUMS.txt"

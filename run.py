@@ -66,29 +66,32 @@ def show_fatal_error(title: str, message: str):
 
 
 def get_java_executable() -> str | None:
-    """Locate Java executable, prioritizing private bundled JRE over system PATH."""
-    exe_name = "java.exe" if sys.platform == "win32" else "java"
-    search_paths = [
-        BUNDLE_DIR / "jre" / "bin" / exe_name,
-        ROOT_DIR / "jre" / "bin" / exe_name,
-        ROOT_DIR / "backend" / "jre" / "bin" / exe_name,
-        ROOT_DIR.parent / "jre" / "bin" / exe_name,
-    ]
-    for p in search_paths:
-        if p.exists() and p.is_file():
-            return str(p)
+    """Locate Java executable, prioritizing windowless javaw.exe and private bundled JRE."""
+    exe_names = ["javaw.exe", "java.exe"] if sys.platform == "win32" else ["java"]
+    for exe_name in exe_names:
+        search_paths = [
+            BUNDLE_DIR / "jre" / "bin" / exe_name,
+            ROOT_DIR / "jre" / "bin" / exe_name,
+            ROOT_DIR / "backend" / "jre" / "bin" / exe_name,
+            ROOT_DIR.parent / "jre" / "bin" / exe_name,
+        ]
+        for p in search_paths:
+            if p.exists() and p.is_file():
+                return str(p)
 
     # Check JAVA_HOME environment variable
     java_home = os.environ.get("JAVA_HOME")
     if java_home:
-        cand = Path(java_home) / "bin" / exe_name
-        if cand.exists() and cand.is_file():
-            return str(cand)
+        for exe_name in exe_names:
+            cand = Path(java_home) / "bin" / exe_name
+            if cand.exists() and cand.is_file():
+                return str(cand)
 
     # Fallback to system PATH
-    sys_java = shutil.which(exe_name) or shutil.which("java")
-    if sys_java:
-        return sys_java
+    for exe_name in exe_names:
+        sys_java = shutil.which(exe_name)
+        if sys_java:
+            return sys_java
 
     return None
 
@@ -220,11 +223,15 @@ def main():
             sys.exit(1)
 
     backend_log = open(LOGS_DIR / "backend.log", "w", encoding="utf-8", buffering=1)
+    creation_flags = 0
+    if sys.platform == "win32":
+        creation_flags = subprocess.CREATE_NO_WINDOW
     backend_proc = subprocess.Popen(
         backend_cmd,
         cwd=str(backend_cwd),
         stdout=backend_log,
         stderr=subprocess.STDOUT,
+        creationflags=creation_flags,
     )
 
     collector_agent = None

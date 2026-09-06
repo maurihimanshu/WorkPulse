@@ -84,15 +84,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller psutil cryptography python-dotenv pystray pillow pywin32
 
+      - name: Install Inno Setup
+        run: choco install innosetup --yes --no-progress
+
       - name: Download Backend JAR Artifact
         uses: actions/download-artifact@v4
         with:
           name: backend-jar
           path: backend/target
 
+      - name: Generate High-Resolution Application Icons
+        run: |
+          python -c "from PIL import Image, ImageDraw; from pathlib import Path; p = Path('assets'); p.mkdir(parents=True, exist_ok=True); img = Image.new('RGBA', (256, 256), (15, 23, 42, 255)); draw = ImageDraw.Draw(img); draw.rounded_rectangle([10, 10, 246, 246], radius=50, outline=(56, 189, 248, 220), width=8); raw_pts = [(140, 40), (72, 132), (124, 132), (100, 216), (192, 112), (136, 112), (164, 40)]; draw.polygon(raw_pts, fill=(56, 189, 248, 255)); img.save(p / 'icon.ico', format='ICO', sizes=[(16,16), (24,24), (32,32), (48,48), (64,64), (128,128), (256,256)]); img.save(p / 'icon.png', format='PNG')"
+
       - name: Build WorkPulse Standalone Executable
         run: |
-          pyinstaller --onefile --noconsole --name WorkPulse --distpath dist/bin --add-data "backend/target/*.jar;backend/target" run.py
+          pyinstaller --onefile --noconsole --name WorkPulse --icon assets/icon.ico --distpath dist/bin --add-data "backend/target/*.jar;backend/target" run.py
 
       - name: Generate Minimal Private JRE via jlink
         run: |
