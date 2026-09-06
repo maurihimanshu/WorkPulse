@@ -11,26 +11,103 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 import time
 import urllib.request
 import webbrowser
 from pathlib import Path
 
-ROOT_DIR = Path(__file__).parent.resolve()
+# Detect frozen PyInstaller mode
+IS_FROZEN = getattr(sys, "frozen", False)
+if IS_FROZEN:
+    ROOT_DIR = Path(sys.executable).parent.resolve()
+    BUNDLE_DIR = Path(getattr(sys, "_MEIPASS", ROOT_DIR)).resolve()
+else:
+    ROOT_DIR = Path(__file__).parent.resolve()
+    BUNDLE_DIR = ROOT_DIR
+
+# Ensure modules in ROOT_DIR and BUNDLE_DIR can be imported
+for p in (str(ROOT_DIR), str(BUNDLE_DIR)):
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
+# Pre-import OS monitors so PyInstaller packages them statically
+if sys.platform == "win32":
+    try:
+        import collector.os_monitors.windows_monitor  # noqa: F401
+    except ImportError:
+        pass
+elif sys.platform == "linux":
+    try:
+        import collector.os_monitors.linux_monitor  # noqa: F401
+    except ImportError:
+        pass
+elif sys.platform == "darwin":
+    try:
+        import collector.os_monitors.macos_monitor  # noqa: F401
+    except ImportError:
+        pass
+
 BACKEND_DIR = ROOT_DIR / "backend"
-JAR_PATH = BACKEND_DIR / "target" / "workpulse-backend-0.2.0.jar"
 DATA_DIR = ROOT_DIR / "data"
+LOGS_DIR = ROOT_DIR / "logs"
+
+
+def show_fatal_error(title: str, message: str):
+    """Display a fatal error via console and native dialog if on Windows."""
+    print(f"\n[FATAL ERROR] {title}\n{message}\n", file=sys.stderr)
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            # MB_ICONERROR (0x10) | MB_OK (0x0)
+            ctypes.windll.user32.MessageBoxW(0, message, title, 0x10)
+        except Exception:
+            pass
 
 
 def check_prerequisites():
-    """Verify java is installed."""
+    """Verify java is installed and reachable on PATH."""
     java_cmd = shutil.which("java")
     if not java_cmd:
-        print("[ERROR] Java runtime not found on PATH. Please install Java 21+.")
+        msg = (
+            "Java runtime environment was not found on PATH.\n\n"
+            "WorkPulse requires Java 21 or higher to run the backend.\n"
+            "Please install Java 21+ (e.g. from https://adoptium.net) and ensure it is in your system PATH."
+        )
+        show_fatal_error("WorkPulse - Java Required", msg)
         sys.exit(1)
 
 
-def wait_for_backend(url="http://localhost:8080/api/control/status", timeout=50):
+def find_backend_jar() -> Path | None:
+    """Search for the Spring Boot backend JAR across bundle and root directories."""
+    search_dirs = [
+        BUNDLE_DIR / "backend" / "target",
+        BUNDLE_DIR / "backend",
+        BUNDLE_DIR,
+        ROOT_DIR / "backend" / "target",
+        ROOT_DIR / "backend",
+        ROOT_DIR,
+    ]
+    seen = set()
+    for d in search_dirs:
+        try:
+            resolved = d.resolve()
+        except Exception:
+            continue
+        if resolved in seen or not resolved.is_dir():
+            continue
+        seen.add(resolved)
+        jars = [
+            j for j in resolved.glob("workpulse-backend-*.jar")
+            if not j.name.endswith(".original")
+        ]
+        if jars:
+            jars.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+            return jars[0]
+    return None
+
+
+def wait_for_backend(url="http://localhost:9876/api/control/status", timeout=50):
     """Wait until Spring Boot backend is responding."""
     start = time.time()
     print("[INFO] Waiting for WorkPulse backend to initialize...")
@@ -47,7 +124,7 @@ def wait_for_backend(url="http://localhost:8080/api/control/status", timeout=50)
 
 def main():
     parser = argparse.ArgumentParser(description="WorkPulse Unified Launcher")
-    parser.add_argument("--port", type=int, default=8080, help="Backend port (default: 8080)")
+    parser.add_argument("--port", type=int, default=9876, help="Backend port (default: 9876)")
     parser.add_argument(
         "--autostart",
         action="store_true",
@@ -76,46 +153,62 @@ def main():
     args = parser.parse_args()
 
     check_prerequisites()
+
+    # Ensure runtime data and logs directories exist in ROOT_DIR
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    os.chdir(ROOT_DIR)
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        os.chdir(ROOT_DIR)
+    except Exception:
+        pass
 
     # 1. Start Spring Boot Backend
-    if JAR_PATH.exists():
-        backend_cmd = ["java", "-jar", str(JAR_PATH), f"--server.port={args.port}"]
-        print(f"[INFO] Starting backend via JAR: {JAR_PATH.name}")
+    jar_path = find_backend_jar()
+    if jar_path:
+        backend_cmd = ["java", "-jar", str(jar_path), f"--server.port={args.port}"]
+        backend_cwd = ROOT_DIR
+        print(f"[INFO] Starting backend via JAR: {jar_path.name}")
     else:
-        mvn_cmd = "mvn.cmd" if sys.platform == "win32" else "mvn"
-        backend_cmd = [
-            mvn_cmd,
-            "spring-boot:run",
-            f"-Dspring-boot.run.arguments=--server.port={args.port}",
-        ]
-        print("[INFO] Starting backend via Maven spring-boot:run...")
+        pom_file = BACKEND_DIR / "pom.xml"
+        mvn_cmd = shutil.which("mvn.cmd" if sys.platform == "win32" else "mvn")
+        if pom_file.exists() and mvn_cmd:
+            backend_cmd = [
+                mvn_cmd,
+                "spring-boot:run",
+                f"-Dspring-boot.run.arguments=--server.port={args.port}",
+            ]
+            backend_cwd = BACKEND_DIR
+            print("[INFO] Starting backend via Maven spring-boot:run...")
+        else:
+            msg = (
+                "WorkPulse backend JAR was not found.\n\n"
+                "Please make sure 'workpulse-backend-0.2.0.jar' is located in the "
+                "'backend/target' folder or in the same directory as WorkPulse.exe."
+            )
+            show_fatal_error("WorkPulse - Missing Backend JAR", msg)
+            sys.exit(1)
 
-    logs_dir = ROOT_DIR / "logs"
-    logs_dir.mkdir(parents=True, exist_ok=True)
-    backend_log = open(logs_dir / "backend.log", "w", encoding="utf-8", buffering=1)
-
+    backend_log = open(LOGS_DIR / "backend.log", "w", encoding="utf-8", buffering=1)
     backend_proc = subprocess.Popen(
         backend_cmd,
-        cwd=str(BACKEND_DIR if not JAR_PATH.exists() else ROOT_DIR),
+        cwd=str(backend_cwd),
         stdout=backend_log,
         stderr=subprocess.STDOUT,
     )
 
-    collector_proc = None
+    collector_agent = None
+    collector_thread = None
 
-    def shutdown_subprocesses():
-        nonlocal collector_proc, backend_proc
+    def shutdown_services():
+        nonlocal collector_agent, backend_proc
         print("\n[INFO] Shutting down WorkPulse...")
-        if collector_proc:
+        if collector_agent:
             print("[INFO] Terminating collector agent...")
-            collector_proc.terminate()
             try:
-                collector_proc.wait(timeout=3)
-            except subprocess.TimeoutExpired:
-                collector_proc.kill()
-            collector_proc = None
+                collector_agent.stop()
+            except Exception:
+                pass
+            collector_agent = None
 
         if backend_proc:
             print("[INFO] Terminating backend server...")
@@ -131,7 +224,7 @@ def main():
         backend_url = f"http://localhost:{args.port}"
         if not wait_for_backend(f"{backend_url}/api/control/status", timeout=50):
             print("[ERROR] Backend failed to start within timeout. See logs/backend.log.")
-            shutdown_subprocesses()
+            shutdown_services()
             sys.exit(1)
 
         # 2. Launch Default Browser (unless launched silently via autostart or --no-browser)
@@ -141,20 +234,18 @@ def main():
 
         # 3. Start Python OS Collector Agent
         if not args.no_collector:
-            collector_cmd = [
-                sys.executable,
-                str(ROOT_DIR / "collector" / "agent.py"),
-                "--api-url",
-                backend_url,
-            ]
-            print("[INFO] Starting Python OS Information Gathering Collector...")
-            collector_log = open(logs_dir / "collector.log", "w", encoding="utf-8", buffering=1)
-            collector_proc = subprocess.Popen(
-                collector_cmd,
-                cwd=str(ROOT_DIR),
-                stdout=collector_log,
-                stderr=subprocess.STDOUT,
-            )
+            try:
+                from collector.agent import CollectorAgent
+                collector_agent = CollectorAgent(api_url=backend_url)
+                collector_thread = threading.Thread(
+                    target=collector_agent.run,
+                    name="WorkPulseCollectorAgentThread",
+                    daemon=True,
+                )
+                collector_thread.start()
+                print("[INFO] Python OS Information Gathering Collector started.")
+            except Exception as e:
+                print(f"[WARN] Failed to start collector agent: {e}")
 
         print("\n" + "=" * 60)
         print(f"  WorkPulse is running at: {backend_url}")
@@ -173,7 +264,7 @@ def main():
                 from collector.tray import WorkPulseTrayApp
                 tray_app = WorkPulseTrayApp(
                     api_url=backend_url,
-                    on_exit_callback=shutdown_subprocesses,
+                    on_exit_callback=shutdown_services,
                 )
                 tray_app.run(show_dialog_on_start=args.dialog)
             except Exception as e:
@@ -185,9 +276,9 @@ def main():
                 time.sleep(1)
 
     except KeyboardInterrupt:
-        shutdown_subprocesses()
+        shutdown_services()
     finally:
-        shutdown_subprocesses()
+        shutdown_services()
 
 
 if __name__ == "__main__":

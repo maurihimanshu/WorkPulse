@@ -9,7 +9,7 @@ import {
   UserProfile,
 } from './types';
 
-const API_BASE = window.location.port === '5173' ? 'http://localhost:8080/api' : '/api';
+const API_BASE = window.location.port === '5173' ? 'http://localhost:9876/api' : '/api';
 
 export const api = {
   async getHeartbeat(): Promise<Heartbeat> {

@@ -26,7 +26,7 @@ logging.basicConfig(
 logger = logging.getLogger('WorkPulseCollector')
 
 class CollectorAgent:
-    def __init__(self, api_url='http://localhost:8080', idle_threshold=60.0, poll_interval=1.0):
+    def __init__(self, api_url='http://localhost:9876', idle_threshold=60.0, poll_interval=1.0):
         self.api_url = api_url.rstrip('/')
         self.idle_threshold = idle_threshold
         self.poll_interval = poll_interval
@@ -175,7 +175,7 @@ class CollectorAgent:
 
 def main():
     parser = argparse.ArgumentParser(description='WorkPulse OS Collector')
-    parser.add_argument('--api-url', default='http://localhost:8080')
+    parser.add_argument('--api-url', default='http://localhost:9876')
     parser.add_argument('--idle-threshold', type=float, default=60.0)
     parser.add_argument('--poll-interval', type=float, default=1.0)
     args = parser.parse_args()

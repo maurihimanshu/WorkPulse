@@ -81,7 +81,7 @@ WorkPulse is designed with a high-performance multi-tier architecture:
   * One-click autostart configuration for Windows (Registry `HKCU\...\Run`), Linux (`~/.config/autostart`), and macOS (`LaunchAgents`).
   * On Windows boot, runs completely silently in the background via `pythonw.exe` without opening command prompt windows.
 * **🌐 Zero-Friction Browser Launch**:
-  * Running `python run.py` automatically initializes the backend, starts the OS collector, launches the system tray icon, and opens your default web browser to `http://localhost:8080`.
+  * Running `python run.py` automatically initializes the backend, starts the OS collector, launches the system tray icon, and opens your default web browser to `http://localhost:9876`.
 
 ---
 
@@ -108,7 +108,7 @@ Run the master launcher:
 ```bash
 python run.py
 ```
-> WorkPulse will start the Java Spring Boot backend, launch the Python OS information collector, and automatically open **`http://localhost:8080`** in your default web browser!
+> WorkPulse will start the Java Spring Boot backend, launch the Python OS information collector, and automatically open **`http://localhost:9876`** in your default web browser!
 
 ---
 

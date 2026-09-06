@@ -121,6 +121,18 @@ def build_package(platform: str):
 
     if "windows" in platform:
         create_windows_bundle(bundle_root)
+        # Include standalone WorkPulse.exe if available
+        exe_candidates = [
+            DIST_DIR / "bin" / f"{APP_NAME}.exe",
+            DIST_DIR / f"{APP_NAME}-v{VERSION}-windows-x64.exe",
+            DIST_DIR / f"{APP_NAME}.exe",
+        ]
+        for ec in exe_candidates:
+            if ec.exists():
+                shutil.copy2(ec, bundle_root / f"{APP_NAME}.exe")
+                print(f"[INFO] Included {APP_NAME}.exe into Windows bundle.")
+                break
+
         zip_path = DIST_DIR / f"{archive_base}.zip"
         print(f"[INFO] Creating zip: {zip_path.name}...")
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:

@@ -46,7 +46,7 @@ WorkPulse is an intelligent, privacy-first activity tracking platform with a mul
 - Running `python run.py`:
   1. Verifies Java 21 runtime.
   2. Ensures `data/` directory exists for SQLite database.
-  3. Boots the Spring Boot backend JAR on port 8080.
+  3. Boots the Spring Boot backend JAR on port 9876.
   4. Waits for `/api/control/status` health check.
   5. Spawns the Python OS collector agent.
-  6. Automatically opens `http://localhost:8080` in the user's default browser.
+  6. Automatically opens `http://localhost:9876` in the user's default browser.
