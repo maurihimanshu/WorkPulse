@@ -171,6 +171,17 @@ def main():
         print(f"  [SUCCESS] {pkg_path.name} ({size_mb:.2f} MB)")
         print(f"            SHA-256: {sha}\n")
 
+    # Check if a standalone PyInstaller EXE was built in dist/bin/WorkPulse.exe
+    exe_built = DIST_DIR / "bin" / f"{APP_NAME}.exe"
+    if exe_built.exists():
+        versioned_exe = DIST_DIR / f"{APP_NAME}-v{VERSION}-windows-x64.exe"
+        shutil.copy2(exe_built, versioned_exe)
+        size_mb = versioned_exe.stat().st_size / (1024 * 1024)
+        sha = calculate_sha256(versioned_exe)
+        checksums.append((versioned_exe.name, f"{size_mb:.2f} MB", sha))
+        print(f"  [SUCCESS] {versioned_exe.name} ({size_mb:.2f} MB)")
+        print(f"            SHA-256: {sha}\n")
+
     checksum_file = DIST_DIR / "SHA256SUMS.txt"
     with open(checksum_file, "w", encoding="utf-8") as f:
         for name, _, sha in checksums:

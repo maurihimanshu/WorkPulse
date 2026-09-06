@@ -65,6 +65,7 @@ jobs:
           files: |
             dist/*.zip
             dist/*.tar.gz
+            dist/*.exe
             dist/SHA256SUMS.txt
           body_path: RELEASE_NOTES.md
           generate_release_notes: true
