@@ -30,7 +30,7 @@ classifiers = [
 dependencies = [
     "psutil>=5.8.0",
     "cryptography>=3.4.0",
-    "python-dotenv>=1.0.0"
+    "python-dotenv>=1.2.3"
 ]
 
 [project.optional-dependencies]
