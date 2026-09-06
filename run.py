@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""
-WorkPulse Unified Launcher.
+"""WorkPulse Unified Launcher.
 
 Starts the Spring Boot backend (with persistent SQLite database),
 spawns the Python OS Information Gathering collector,
-and automatically launches the React presentation layer in the default browser.
+and launches the System Tray resident application in the taskbar notification area.
 """
 
 import argparse
@@ -31,8 +30,8 @@ def check_prerequisites():
         sys.exit(1)
 
 
-def wait_for_backend(url="http://localhost:8080/api/control/status", timeout=40):
-    """Wait until Spring Boot is responding."""
+def wait_for_backend(url="http://localhost:8080/api/control/status", timeout=50):
+    """Wait until Spring Boot backend is responding."""
     start = time.time()
     print("[INFO] Waiting for WorkPulse backend to initialize...")
     while time.time() - start < timeout:
@@ -49,8 +48,31 @@ def wait_for_backend(url="http://localhost:8080/api/control/status", timeout=40)
 def main():
     parser = argparse.ArgumentParser(description="WorkPulse Unified Launcher")
     parser.add_argument("--port", type=int, default=8080, help="Backend port (default: 8080)")
-    parser.add_argument("--no-browser", action="store_true", help="Do not open default browser automatically")
-    parser.add_argument("--no-collector", action="store_true", help="Do not start Python OS collector")
+    parser.add_argument(
+        "--autostart",
+        action="store_true",
+        help="Launched by system boot (silent, no browser pop-up)",
+    )
+    parser.add_argument(
+        "--no-browser",
+        action="store_true",
+        help="Do not open default browser automatically",
+    )
+    parser.add_argument(
+        "--no-collector",
+        action="store_true",
+        help="Do not start Python OS collector",
+    )
+    parser.add_argument(
+        "--no-tray",
+        action="store_true",
+        help="Run without taskbar system tray (console mode)",
+    )
+    parser.add_argument(
+        "--dialog",
+        action="store_true",
+        help="Open status dialog immediately on launch",
+    )
     args = parser.parse_args()
 
     check_prerequisites()
@@ -63,7 +85,11 @@ def main():
         print(f"[INFO] Starting backend via JAR: {JAR_PATH.name}")
     else:
         mvn_cmd = "mvn.cmd" if sys.platform == "win32" else "mvn"
-        backend_cmd = [mvn_cmd, "spring-boot:run", f"-Dspring-boot.run.arguments=--server.port={args.port}"]
+        backend_cmd = [
+            mvn_cmd,
+            "spring-boot:run",
+            f"-Dspring-boot.run.arguments=--server.port={args.port}",
+        ]
         print("[INFO] Starting backend via Maven spring-boot:run...")
 
     logs_dir = ROOT_DIR / "logs"
@@ -79,15 +105,37 @@ def main():
 
     collector_proc = None
 
+    def shutdown_subprocesses():
+        nonlocal collector_proc, backend_proc
+        print("\n[INFO] Shutting down WorkPulse...")
+        if collector_proc:
+            print("[INFO] Terminating collector agent...")
+            collector_proc.terminate()
+            try:
+                collector_proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                collector_proc.kill()
+            collector_proc = None
+
+        if backend_proc:
+            print("[INFO] Terminating backend server...")
+            backend_proc.terminate()
+            try:
+                backend_proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                backend_proc.kill()
+            backend_proc = None
+        print("[INFO] WorkPulse stopped.")
+
     try:
-        # Wait for backend health
         backend_url = f"http://localhost:{args.port}"
         if not wait_for_backend(f"{backend_url}/api/control/status", timeout=50):
             print("[ERROR] Backend failed to start within timeout. See logs/backend.log.")
+            shutdown_subprocesses()
             sys.exit(1)
 
-        # 2. Launch Default Browser
-        if not args.no_browser:
+        # 2. Launch Default Browser (unless launched silently via autostart or --no-browser)
+        if not args.autostart and not args.no_browser:
             print(f"[INFO] Launching WorkPulse Dashboard in default browser at {backend_url}...")
             webbrowser.open(backend_url)
 
@@ -112,34 +160,34 @@ def main():
         print(f"  WorkPulse is running at: {backend_url}")
         print("  - Python Collector: Active (tracking active window & idle)")
         print(f"  - Database: Persistent SQLite (data/workpulse.db)")
-        print("  - Web UI: Live in default browser")
+        if not args.no_tray:
+            print("  - Taskbar System Tray: Active (Taskbar hidden icons area)")
+            print("    * Click tray icon to open status & quick actions dialog")
+            print("    * Right-click for options (Open Dashboard, Autostart, Quit)")
         print("  Press Ctrl+C to stop all services gracefully.")
         print("=" * 60 + "\n")
 
-        # Keep main thread alive
-        while True:
-            time.sleep(1)
+        # 4. Start System Tray Resident Loop or Fallback to Console Wait
+        if not args.no_tray:
+            try:
+                from collector.tray import WorkPulseTrayApp
+                tray_app = WorkPulseTrayApp(
+                    api_url=backend_url,
+                    on_exit_callback=shutdown_subprocesses,
+                )
+                tray_app.run(show_dialog_on_start=args.dialog)
+            except Exception as e:
+                print(f"[WARN] Failed to start system tray ({e}). Falling back to console loop.")
+                while True:
+                    time.sleep(1)
+        else:
+            while True:
+                time.sleep(1)
 
     except KeyboardInterrupt:
-        print("\n[INFO] Shutting down WorkPulse gracefully...")
+        shutdown_subprocesses()
     finally:
-        if collector_proc:
-            print("[INFO] Terminating collector agent...")
-            collector_proc.terminate()
-            try:
-                collector_proc.wait(timeout=3)
-            except subprocess.TimeoutExpired:
-                collector_proc.kill()
-
-        if backend_proc:
-            print("[INFO] Terminating backend server...")
-            backend_proc.terminate()
-            try:
-                backend_proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                backend_proc.kill()
-
-        print("[INFO] WorkPulse stopped.")
+        shutdown_subprocesses()
 
 
 if __name__ == "__main__":
