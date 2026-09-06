@@ -58,12 +58,18 @@ jobs:
           path: backend/target/workpulse-backend-*.jar
 
   build-windows-exe:
-    name: Build Windows Standalone Executable (.exe)
+    name: Build Windows Standalone Executable & Embedded JRE
     needs: build-backend
     runs-on: windows-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -86,6 +92,14 @@ jobs:
         run: |
           pyinstaller --onefile --noconsole --name WorkPulse --distpath dist/bin --add-data "backend/target/*.jar;backend/target" run.py
 
+      - name: Generate Minimal Private JRE via jlink
+        shell: bash
+        run: |
+          mkdir -p dist/jre
+          jlink --no-header-files --no-man-pages --strip-debug \
+            --add-modules java.base,java.compiler,java.desktop,java.instrument,java.management,java.naming,java.net.http,java.prefs,java.rmi,java.scripting,java.security.jgss,java.security.sasl,java.sql,java.sql.rowset,java.transaction.xa,java.xml,jdk.crypto.ec,jdk.httpserver,jdk.unsupported,jdk.management \
+            --output dist/jre
+
       - name: Stage Versioned Executable
         shell: bash
         run: |
@@ -94,18 +108,19 @@ jobs:
           mkdir -p dist
           cp dist/bin/WorkPulse.exe "dist/WorkPulse-v${VERSION}-windows-x64.exe"
 
-      - name: Upload Windows Executable Artifact
+      - name: Upload Windows Executable & JRE Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: windows-exe
+          name: windows-assets
           path: |
             dist/*.exe
             dist/bin/WorkPulse.exe
+            dist/jre
 
   build-and-release:
     name: Build Packages & Publish Release
     needs: [build-backend, build-windows-exe]
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -117,7 +132,6 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: 'maven'
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -131,11 +145,19 @@ jobs:
           name: backend-jar
           path: backend/target
 
-      - name: Download Windows Executable Artifact
+      - name: Download Windows Assets Artifact
         uses: actions/download-artifact@v4
         with:
-          name: windows-exe
-          path: dist/bin
+          name: windows-assets
+          path: dist
+
+      - name: Move WorkPulse.exe to dist/bin
+        shell: bash
+        run: |
+          mkdir -p dist/bin
+          if [ -f "dist/WorkPulse.exe" ]; then
+            cp dist/WorkPulse.exe dist/bin/WorkPulse.exe
+          fi
 
       - name: Generate Multi-Platform Installables & Checksums
         run: python scripts/package.py ${{ github.event.inputs.version || github.ref_name }}

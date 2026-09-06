@@ -65,14 +65,43 @@ def show_fatal_error(title: str, message: str):
             pass
 
 
+def get_java_executable() -> str | None:
+    """Locate Java executable, prioritizing private bundled JRE over system PATH."""
+    exe_name = "java.exe" if sys.platform == "win32" else "java"
+    search_paths = [
+        BUNDLE_DIR / "jre" / "bin" / exe_name,
+        ROOT_DIR / "jre" / "bin" / exe_name,
+        ROOT_DIR / "backend" / "jre" / "bin" / exe_name,
+        ROOT_DIR.parent / "jre" / "bin" / exe_name,
+    ]
+    for p in search_paths:
+        if p.exists() and p.is_file():
+            return str(p)
+
+    # Check JAVA_HOME environment variable
+    java_home = os.environ.get("JAVA_HOME")
+    if java_home:
+        cand = Path(java_home) / "bin" / exe_name
+        if cand.exists() and cand.is_file():
+            return str(cand)
+
+    # Fallback to system PATH
+    sys_java = shutil.which(exe_name) or shutil.which("java")
+    if sys_java:
+        return sys_java
+
+    return None
+
+
 def check_prerequisites():
-    """Verify java is installed and reachable on PATH."""
-    java_cmd = shutil.which("java")
-    if not java_cmd:
+    """Verify java runtime is available (bundled JRE or system PATH)."""
+    java_bin = get_java_executable()
+    if not java_bin:
         msg = (
-            "Java runtime environment was not found on PATH.\n\n"
+            "Java runtime environment was not found.\n\n"
             "WorkPulse requires Java 21 or higher to run the backend.\n"
-            "Please install Java 21+ (e.g. from https://adoptium.net) and ensure it is in your system PATH."
+            "Please ensure the bundled 'jre/' folder is present, or install Java 21+ "
+            "(e.g. from https://adoptium.net) and add it to your system PATH."
         )
         show_fatal_error("WorkPulse - Java Required", msg)
         sys.exit(1)
@@ -164,10 +193,12 @@ def main():
 
     # 1. Start Spring Boot Backend
     jar_path = find_backend_jar()
-    if jar_path:
-        backend_cmd = ["java", "-jar", str(jar_path), f"--server.port={args.port}"]
+    java_bin = get_java_executable()
+    if jar_path and java_bin:
+        backend_cmd = [java_bin, "-jar", str(jar_path), f"--server.port={args.port}"]
         backend_cwd = ROOT_DIR
         print(f"[INFO] Starting backend via JAR: {jar_path.name}")
+        print(f"[INFO] Using Java runtime: {java_bin}")
     else:
         pom_file = BACKEND_DIR / "pom.xml"
         mvn_cmd = shutil.which("mvn.cmd" if sys.platform == "win32" else "mvn")
