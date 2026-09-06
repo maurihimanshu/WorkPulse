@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=WorkPulse
+Comment=AI-Powered Work Pulse & Productivity Assistant
+Exec=/usr/local/bin/workpulse
+Icon=/opt/workpulse/assets/icon.png
+Terminal=false
+Categories=Utility;Office;Development;
+StartupNotify=true
+StartupWMClass=WorkPulse
+Keywords=productivity;work;assistant;time;tracker;

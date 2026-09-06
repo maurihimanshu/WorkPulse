@@ -74,6 +74,11 @@ def get_java_executable() -> str | None:
             ROOT_DIR / "jre" / "bin" / exe_name,
             ROOT_DIR / "backend" / "jre" / "bin" / exe_name,
             ROOT_DIR.parent / "jre" / "bin" / exe_name,
+            # macOS .app bundle structure (Contents/PlugIns/jre/bin/java)
+            ROOT_DIR.parent / "PlugIns" / "jre" / "bin" / exe_name,
+            BUNDLE_DIR.parent / "PlugIns" / "jre" / "bin" / exe_name,
+            # Linux system installation (/opt/workpulse/jre/bin/java)
+            Path("/opt/workpulse/jre/bin") / exe_name,
         ]
         for p in search_paths:
             if p.exists() and p.is_file():
@@ -119,6 +124,11 @@ def find_backend_jar() -> Path | None:
         ROOT_DIR / "backend" / "target",
         ROOT_DIR / "backend",
         ROOT_DIR,
+        # macOS .app bundle paths
+        ROOT_DIR.parent / "Java",
+        ROOT_DIR.parent / "Resources" / "backend" / "target",
+        # Linux system installation
+        Path("/opt/workpulse/backend/target"),
     ]
     seen = set()
     for d in search_dirs:

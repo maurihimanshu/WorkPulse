@@ -295,11 +295,13 @@ def main():
         sys.exit(1)
 
     DIST_DIR.mkdir(parents=True, exist_ok=True)
-    platforms = [
-        "windows-x64",
-        "linux-x64",
-        "macos-universal",
-    ]
+    target_platform = sys.argv[2] if len(sys.argv) > 2 else None
+    if target_platform:
+        platforms = [target_platform]
+    elif sys.platform == "win32":
+        platforms = ["windows-x64"]
+    else:
+        platforms = ["linux-x64", "macos-universal"]
 
     checksums = []
     print(f"\n========================================================")
