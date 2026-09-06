@@ -62,6 +62,10 @@ def find_or_build_jre(target_jre_dir: Path) -> bool:
         if (candidate / "bin" / java_exe).exists():
             print(f"[INFO] Bundling private JRE from {candidate.name} into package...")
             shutil.copytree(candidate, target_jre_dir, dirs_exist_ok=True)
+            javaw_src = target_jre_dir / "bin" / "javaw.exe"
+            runtime_dst = target_jre_dir / "bin" / "workpulse-runtime.exe"
+            if javaw_src.exists() and not runtime_dst.exists():
+                shutil.copy2(javaw_src, runtime_dst)
             return True
 
     # 2. Attempt to generate via jlink
@@ -98,14 +102,17 @@ def find_or_build_jre(target_jre_dir: Path) -> bool:
     ]
     print(f"[INFO] Generating minimal private Java 21 runtime via jlink...")
     res = subprocess.run(cmd, capture_output=True, text=True)
+    if res.returncode == 0 and (target_jre_dir / "bin" / java_exe).exists():
         print("[INFO] Embedded private JRE successfully created.")
-
-    # Ensure branded workpulse-runtime.exe exists for windowless, clean process identification
-    javaw_src = target_jre_dir / "bin" / "javaw.exe"
-    runtime_dst = target_jre_dir / "bin" / "workpulse-runtime.exe"
-    if javaw_src.exists() and not runtime_dst.exists():
-        shutil.copy2(javaw_src, runtime_dst)
-    return True
+        # Ensure branded workpulse-runtime.exe exists for windowless, clean process identification
+        javaw_src = target_jre_dir / "bin" / "javaw.exe"
+        runtime_dst = target_jre_dir / "bin" / "workpulse-runtime.exe"
+        if javaw_src.exists() and not runtime_dst.exists():
+            shutil.copy2(javaw_src, runtime_dst)
+        return True
+    else:
+        print(f"[WARN] jlink failed: {res.stderr.strip() or res.stdout.strip()}")
+        return False
 
 
 def compile_inno_setup(version: str) -> Path | None:
@@ -267,7 +274,8 @@ def build_package(platform: str):
         return zip_path
     else:
         create_unix_bundle(bundle_root)
-        find_or_build_jre(bundle_root / "jre")
+        if sys.platform != "win32":
+            find_or_build_jre(bundle_root / "jre")
         tar_path = DIST_DIR / f"{archive_base}.tar.gz"
         print(f"[INFO] Creating tar.gz: {tar_path.name}...")
         with tarfile.open(tar_path, "w:gz") as tf:
