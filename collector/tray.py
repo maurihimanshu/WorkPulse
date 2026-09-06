@@ -17,7 +17,25 @@ import webbrowser
 from pathlib import Path
 from typing import Callable, Optional
 
-import pystray
+# Handle headless Linux and environments without graphical tray backends
+try:
+    if sys.platform.startswith("linux") and "PYSTRAY_BACKEND" not in os.environ:
+        try:
+            import gi
+            gi.require_version("AppIndicator3", "0.1")
+        except Exception:
+            try:
+                import Xlib
+            except Exception:
+                os.environ["PYSTRAY_BACKEND"] = "dummy"
+
+    import pystray
+    from pystray import Menu, MenuItem
+except Exception as e:
+    pystray = None
+    Menu = None
+    MenuItem = None
+
 from PIL import Image, ImageDraw
 
 from collector.autostart import disable_autostart, enable_autostart, is_autostart_enabled
@@ -350,61 +368,86 @@ class WorkPulseTrayApp:
 
     def _setup_pystray(self):
         """Initialize and run the pystray icon menu."""
-        image = create_tray_icon_image()
+        if pystray is None:
+            logger.warning("pystray is unavailable; system tray icon will not be displayed.")
+            return
 
-        def on_toggle_pause_menu(icon, item):
-            self.toggle_monitoring()
+        try:
+            image = create_tray_icon_image()
 
-        def on_autostart_menu(icon, item):
-            self.toggle_autostart()
+            def on_toggle_pause_menu(icon, item):
+                self.toggle_monitoring()
 
-        def autostart_checked(item):
-            return is_autostart_enabled()
+            def on_autostart_menu(icon, item):
+                self.toggle_autostart()
 
-        menu = pystray.Menu(
-            pystray.MenuItem("⚡ WorkPulse Status", lambda icon, item: self.show_dialog(), default=True),
-            pystray.MenuItem("🌐 Open Dashboard", lambda icon, item: self.open_dashboard()),
-            pystray.Menu.SEPARATOR,
-            pystray.MenuItem("⏸ Pause / Resume", on_toggle_pause_menu),
-            pystray.MenuItem("☑ Start with Windows", on_autostart_menu, checked=autostart_checked),
-            pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Exit WorkPulse", lambda icon, item: self.quit()),
-        )
+            def autostart_checked(item):
+                return is_autostart_enabled()
 
-        self.icon = pystray.Icon(
-            "WorkPulse",
-            image,
-            title=f"{APP_TITLE} v{VERSION} - Monitoring Active",
-            menu=menu,
-        )
-        self.icon.run()
+            menu = pystray.Menu(
+                pystray.MenuItem("⚡ WorkPulse Status", lambda icon, item: self.show_dialog(), default=True),
+                pystray.MenuItem("🌐 Open Dashboard", lambda icon, item: self.open_dashboard()),
+                pystray.Menu.SEPARATOR,
+                pystray.MenuItem("⏸ Pause / Resume", on_toggle_pause_menu),
+                pystray.MenuItem("☑ Start with Windows", on_autostart_menu, checked=autostart_checked),
+                pystray.Menu.SEPARATOR,
+                pystray.MenuItem("Exit WorkPulse", lambda icon, item: self.quit()),
+            )
+
+            self.icon = pystray.Icon(
+                "WorkPulse",
+                image,
+                title=f"{APP_TITLE} v{VERSION} - Monitoring Active",
+                menu=menu,
+            )
+            self.icon.run()
+        except Exception as e:
+            logger.warning(f"Error running pystray system tray: {e}")
 
     def run(self, show_dialog_on_start=False):
         """Launch the background tray application and initialize the Tkinter loop."""
-        import tkinter as tk
-
-        self.tk_root = tk.Tk()
-        self.tk_root.withdraw()  # Root window remains hidden; Toplevel is used for dialog
-
-        # Start pystray in a dedicated daemon thread
-        tray_thread = threading.Thread(target=self._setup_pystray, daemon=True)
-        tray_thread.start()
-
-        if show_dialog_on_start:
-            self.tk_root.after(500, self.show_dialog)
-
-        logger.info("WorkPulse System Tray resident app active.")
         try:
-            self.tk_root.mainloop()
-        except KeyboardInterrupt:
-            self.quit()
+            import tkinter as tk
+            self.tk_root = tk.Tk()
+            self.tk_root.withdraw()  # Root window remains hidden; Toplevel is used for dialog
+        except Exception as e:
+            logger.warning(f"Tkinter GUI display not available (headless environment): {e}")
+            self.tk_root = None
+
+        # Start pystray in a dedicated daemon thread if available
+        if pystray is not None:
+            try:
+                tray_thread = threading.Thread(target=self._setup_pystray, daemon=True)
+                tray_thread.start()
+            except Exception as e:
+                logger.warning(f"Failed to start tray thread: {e}")
+
+        if self.tk_root:
+            if show_dialog_on_start:
+                self.tk_root.after(500, self.show_dialog)
+            logger.info("WorkPulse System Tray resident app active.")
+            try:
+                self.tk_root.mainloop()
+            except KeyboardInterrupt:
+                self.quit()
+        else:
+            # Headless fallback loop
+            logger.info("WorkPulse running in headless background mode.")
+            try:
+                while self._running:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                self.quit()
 
     def quit(self):
         """Gracefully shut down system tray and trigger master exit callback."""
         logger.info("Exiting WorkPulse System Tray...")
         self._running = False
         if self.icon:
-            self.icon.stop()
+            try:
+                self.icon.stop()
+            except Exception:
+                pass
         if self.tk_root:
             try:
                 self.tk_root.quit()
