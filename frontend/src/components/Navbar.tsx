@@ -37,7 +37,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <Activity size={20} color="#ffffff" />
         </div>
         <span>WorkPulse</span>
-        <span className="nav-brand-badge">v0.2.0</span>
+        <span className="nav-brand-badge">v0.2.1</span>
       </div>
 
       <nav className="nav-tabs">

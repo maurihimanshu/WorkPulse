@@ -72,3 +72,29 @@ export interface UserProfile {
   workEndHour: number;
   theme: string;
 }
+
+export interface DeepWorkStats {
+  deepWorkSeconds: number;
+  longestStreakSeconds: number;
+  longestStreakApp: string;
+  contextSwitchesPerHour: number;
+  focusRating: string;
+  flowScore: number;
+}
+
+export interface ProjectBreakdown {
+  projectName: string;
+  category: string;
+  activeSeconds: number;
+  percentage: number;
+  primaryApp: string;
+}
+
+export interface WellbeingStats {
+  coreHoursSeconds: number;
+  overtimeSeconds: number;
+  longestStretchWithoutBreakSeconds: number;
+  breakCount: number;
+  burnoutRisk: string;
+  fatigueWarning: boolean;
+}

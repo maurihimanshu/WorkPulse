@@ -50,4 +50,36 @@ public class StatsController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         return ResponseEntity.ok(statsService.getCategoryBreakdown(startDate, endDate));
     }
+
+    @GetMapping("/deep-work")
+    public ResponseEntity<com.workpulse.dto.DeepWorkStatsDto> getDeepWork(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        return ResponseEntity.ok(statsService.getDeepWorkStats(startDate, endDate));
+    }
+
+    @GetMapping("/projects")
+    public ResponseEntity<List<com.workpulse.dto.ProjectBreakdownDto>> getProjects(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(defaultValue = "6") int limit) {
+        return ResponseEntity.ok(statsService.getProjectBreakdown(startDate, endDate, limit));
+    }
+
+    @GetMapping("/wellbeing")
+    public ResponseEntity<com.workpulse.dto.WellbeingStatsDto> getWellbeing(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        return ResponseEntity.ok(statsService.getWellbeingStats(startDate, endDate));
+    }
+
+    @GetMapping(value = "/export", produces = "text/csv")
+    public ResponseEntity<String> exportCsv(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        String csvData = statsService.exportCsv(startDate, endDate);
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"workpulse-report.csv\"")
+                .body(csvData);
+    }
 }

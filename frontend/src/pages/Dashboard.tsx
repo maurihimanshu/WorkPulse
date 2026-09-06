@@ -8,9 +8,23 @@ import {
   Activity as ActivityIcon,
   Layers,
   Calendar,
+  Download,
 } from 'lucide-react';
 import { api } from '../api';
-import { StatsSummary, TopApp, HourlyStat, CategoryStat, Heartbeat } from '../types';
+import {
+  StatsSummary,
+  TopApp,
+  HourlyStat,
+  CategoryStat,
+  Heartbeat,
+  DeepWorkStats,
+  ProjectBreakdown,
+  WellbeingStats,
+} from '../types';
+import { GoalProgressRing } from '../components/GoalProgressRing';
+import { DeepWorkCard } from '../components/DeepWorkCard';
+import { ProjectBreakdownCard } from '../components/ProjectBreakdownCard';
+import { WellbeingCard } from '../components/WellbeingCard';
 
 interface DashboardProps {
   heartbeat: Heartbeat | null;
@@ -22,6 +36,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ heartbeat }) => {
   const [topApps, setTopApps] = useState<TopApp[]>([]);
   const [hourly, setHourly] = useState<HourlyStat[]>([]);
   const [categories, setCategories] = useState<CategoryStat[]>([]);
+  const [deepWork, setDeepWork] = useState<DeepWorkStats | null>(null);
+  const [projects, setProjects] = useState<ProjectBreakdown[]>([]);
+  const [wellbeing, setWellbeing] = useState<WellbeingStats | null>(null);
+  const [exporting, setExporting] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const getDateRange = () => {
@@ -50,20 +68,38 @@ export const Dashboard: React.FC<DashboardProps> = ({ heartbeat }) => {
   const loadData = async () => {
     try {
       const { start, end } = getDateRange();
-      const [sumRes, appsRes, hourlyRes, catRes] = await Promise.all([
+      const [sumRes, appsRes, hourlyRes, catRes, dwRes, projRes, wbRes] = await Promise.all([
         api.getSummary(start, end),
         api.getTopApps(start, end, 8),
         api.getHourly(start),
         api.getCategoryStats(start, end),
+        api.getDeepWork(start, end),
+        api.getProjects(start, end, 6),
+        api.getWellbeing(start, end),
       ]);
       setSummary(sumRes);
       setTopApps(appsRes);
       setHourly(hourlyRes);
       setCategories(catRes);
+      setDeepWork(dwRes);
+      setProjects(projRes);
+      setWellbeing(wbRes);
     } catch (e) {
       console.error('Error loading dashboard data:', e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      const { start, end } = getDateRange();
+      await api.downloadCsvExport(start, end);
+    } catch (e) {
+      console.error('Export failed:', e);
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -89,28 +125,50 @@ export const Dashboard: React.FC<DashboardProps> = ({ heartbeat }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      {/* Range Filter Controls */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* Range Filter & Productivity Actions */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, letterSpacing: '-0.02em', margin: 0 }}>
             Productivity Dashboard
           </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0.2rem 0 0 0' }}>
             Real-time activity telemetry &amp; intelligent work metrics
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem', background: 'var(--bg-surface)', padding: '0.35rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-          {(['today', 'yesterday', '7days', 'month'] as const).map((r) => (
-            <button
-              key={r}
-              className={`btn ${range === r ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ padding: '0.35rem 0.85rem', fontSize: '0.8rem', border: 'none' }}
-              onClick={() => setRange(r)}
-            >
-              {r === 'today' ? 'Today' : r === 'yesterday' ? 'Yesterday' : r === '7days' ? 'Last 7 Days' : 'Last 30 Days'}
-            </button>
-          ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
+          <GoalProgressRing activeSeconds={summary?.totalActiveSeconds || 0} />
+
+          <div style={{ display: 'flex', gap: '0.35rem', background: 'var(--bg-surface)', padding: '0.35rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            {(['today', 'yesterday', '7days', 'month'] as const).map((r) => (
+              <button
+                key={r}
+                className={`btn ${range === r ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ padding: '0.35rem 0.85rem', fontSize: '0.8rem', border: 'none' }}
+                onClick={() => setRange(r)}
+              >
+                {r === 'today' ? 'Today' : r === 'yesterday' ? 'Yesterday' : r === '7days' ? 'Last 7 Days' : 'Last 30 Days'}
+              </button>
+            ))}
+          </div>
+
+          <button
+            className="btn btn-secondary"
+            onClick={handleExport}
+            disabled={exporting}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              padding: '0.5rem 0.9rem',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+            }}
+            title="Download timesheet CSV report"
+          >
+            <Download size={14} />
+            <span>{exporting ? 'Exporting...' : 'Export CSV'}</span>
+          </button>
         </div>
       </div>
 
@@ -195,6 +253,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ heartbeat }) => {
           </div>
           <div className="metric-sub">{summary?.activitiesCount || 0} recorded sessions</div>
         </div>
+      </div>
+
+      {/* Deep Work & Well-Being Intelligence Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '1.5rem' }}>
+        <DeepWorkCard stats={deepWork} />
+        <WellbeingCard stats={wellbeing} />
       </div>
 
       {/* Middle Section: Hourly Chart & Top Apps */}
@@ -304,32 +368,41 @@ export const Dashboard: React.FC<DashboardProps> = ({ heartbeat }) => {
         </div>
       </div>
 
-      {/* Categories Breakdown Cards */}
-      <div className="card">
-        <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '1rem' }}>Category Distribution</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-          {categories.length === 0 ? (
-            <p style={{ color: 'var(--text-muted)' }}>No categories recorded yet.</p>
-          ) : (
-            categories.map((c, i) => (
-              <div
-                key={i}
-                style={{
-                  padding: '1rem',
-                  borderRadius: '8px',
-                  background: 'var(--bg-surface-hover)',
-                  border: '1px solid var(--border-color)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.35rem',
-                }}
-              >
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500 }}>{c.category}</div>
-                <div style={{ fontSize: '1.3rem', fontWeight: 700 }}>{formatSeconds(c.activeSeconds)}</div>
-                <div style={{ fontSize: '0.75rem', color: '#3b82f6', fontWeight: 600 }}>{c.percentage}% of time</div>
-              </div>
-            ))
-          )}
+      {/* Projects and Categories Intelligence Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.5rem' }}>
+        <ProjectBreakdownCard projects={projects} />
+
+        {/* Categories Breakdown Cards */}
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>Category Distribution</h3>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Focus Ratio</span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.85rem' }}>
+            {categories.length === 0 ? (
+              <p style={{ color: 'var(--text-muted)' }}>No categories recorded yet.</p>
+            ) : (
+              categories.map((c, i) => (
+                <div
+                  key={i}
+                  style={{
+                    padding: '0.85rem',
+                    borderRadius: '8px',
+                    background: 'var(--bg-surface-hover)',
+                    border: '1px solid var(--border-color)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.35rem',
+                  }}
+                >
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 500 }}>{c.category}</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 700 }}>{formatSeconds(c.activeSeconds)}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#3b82f6', fontWeight: 600 }}>{c.percentage}% of time</div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
     </div>
