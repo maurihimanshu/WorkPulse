@@ -17,69 +17,60 @@ export const ProjectBreakdownCard: React.FC<ProjectBreakdownCardProps> = ({ proj
   const getProjectIcon = (name: string, category: string) => {
     const lower = name.toLowerCase();
     if (lower.includes('meet') || lower.includes('collab') || lower.includes('slack')) {
-      return <MessageSquare size={15} color="#38bdf8" />;
+      return <MessageSquare size={14} color="#06b6d4" />;
     }
     if (lower.includes('github') || lower.includes('review') || lower.includes('repo')) {
-      return <FolderGit2 size={15} color="#a855f7" />;
+      return <FolderGit2 size={14} color="#a855f7" />;
     }
     if (lower.includes('task') || lower.includes('jira') || lower.includes('linear')) {
-      return <CheckCircle2 size={15} color="#10b981" />;
+      return <CheckCircle2 size={14} color="#10b981" />;
     }
     if (lower.includes('doc') || lower.includes('notion') || lower.includes('note')) {
-      return <FileText size={15} color="#f59e0b" />;
+      return <FileText size={14} color="#f59e0b" />;
     }
     if (lower.includes('research') || lower.includes('web')) {
-      return <Globe size={15} color="#06b6d4" />;
+      return <Globe size={14} color="#3b82f6" />;
     }
-    return <Code size={15} color="#6366f1" />;
+    return <Code size={14} color="#6366f1" />;
   };
 
   return (
-    <div
-      style={{
-        backgroundColor: 'var(--bg-card)',
-        borderRadius: '1rem',
-        border: '1px solid var(--border)',
-        padding: '1.25rem',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '1rem',
-      }}
-    >
+    <div className="glass-panel" style={{ padding: '1.35rem', display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
           <div
             style={{
-              padding: '0.4rem',
-              borderRadius: '0.5rem',
-              backgroundColor: 'rgba(99, 102, 241, 0.15)',
+              padding: '0.5rem',
+              borderRadius: '10px',
+              backgroundColor: 'rgba(99, 102, 241, 0.12)',
               color: '#6366f1',
               display: 'flex',
+              border: '1px solid rgba(99, 102, 241, 0.25)',
             }}
           >
             <FolderGit2 size={18} />
           </div>
           <div>
-            <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.01em' }}>
               Top Projects &amp; Workspaces
             </h3>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
-              Context-aware time allocation parsed from window activity
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.1rem 0 0 0' }}>
+              Context-aware time allocation parsed from window telemetry
             </p>
           </div>
         </div>
       </div>
 
       {projects.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+        <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
           No active project data recorded for this period.
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
           {projects.map((proj, idx) => (
-            <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+            <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', minWidth: 0 }}>
                   {getProjectIcon(proj.projectName, proj.category)}
                   <span
                     style={{
@@ -89,7 +80,7 @@ export const ProjectBreakdownCard: React.FC<ProjectBreakdownCardProps> = ({ proj
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
-                      maxWidth: '220px',
+                      maxWidth: '240px',
                     }}
                     title={proj.projectName}
                   >
@@ -97,22 +88,24 @@ export const ProjectBreakdownCard: React.FC<ProjectBreakdownCardProps> = ({ proj
                   </span>
                   <span
                     style={{
-                      fontSize: '0.65rem',
-                      padding: '0.1rem 0.4rem',
-                      borderRadius: '0.35rem',
-                      backgroundColor: 'var(--bg-card-secondary, rgba(255,255,255,0.05))',
-                      color: 'var(--text-secondary)',
+                      fontSize: '0.68rem',
+                      padding: '0.1rem 0.45rem',
+                      borderRadius: '4px',
+                      backgroundColor: 'var(--bg-surface-elevated)',
+                      color: 'var(--text-muted)',
+                      border: '1px solid var(--border-subtle)',
+                      fontFamily: 'var(--font-mono)',
                     }}
                   >
                     {proj.primaryApp}
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexShrink: 0 }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
                     {formatSeconds(proj.activeSeconds)}
                   </span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', minWidth: '35px', textAlign: 'right' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', minWidth: '35px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
                     {proj.percentage}%
                   </span>
                 </div>
@@ -122,8 +115,9 @@ export const ProjectBreakdownCard: React.FC<ProjectBreakdownCardProps> = ({ proj
               <div
                 style={{
                   height: '6px',
-                  borderRadius: '3px',
-                  backgroundColor: 'var(--border)',
+                  borderRadius: '9999px',
+                  backgroundColor: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--border-subtle)',
                   overflow: 'hidden',
                 }}
               >
@@ -131,12 +125,12 @@ export const ProjectBreakdownCard: React.FC<ProjectBreakdownCardProps> = ({ proj
                   style={{
                     height: '100%',
                     width: `${Math.min(100, Math.max(3, proj.percentage))}%`,
-                    borderRadius: '3px',
+                    borderRadius: '9999px',
                     backgroundColor:
                       idx === 0
                         ? '#6366f1'
                         : idx === 1
-                        ? '#38bdf8'
+                        ? '#06b6d4'
                         : idx === 2
                         ? '#10b981'
                         : idx === 3
@@ -153,3 +147,4 @@ export const ProjectBreakdownCard: React.FC<ProjectBreakdownCardProps> = ({ proj
     </div>
   );
 };
+

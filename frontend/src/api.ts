@@ -188,4 +188,16 @@ export const api = {
   async deleteCategory(id: string): Promise<void> {
     await fetch(`${API_BASE}/settings/categories/${id}`, { method: 'DELETE' });
   },
+
+  async getCurrentResources(): Promise<import('./types').SystemResourceSummary> {
+    const res = await fetch(`${API_BASE}/stats/resources/current`);
+    if (!res.ok) throw new Error('Failed to fetch current resources');
+    return res.json();
+  },
+
+  async getResourceHogs(): Promise<import('./types').ProcessResource[]> {
+    const res = await fetch(`${API_BASE}/stats/resources/hogs`);
+    if (!res.ok) throw new Error('Failed to fetch resource hogs');
+    return res.json();
+  },
 };

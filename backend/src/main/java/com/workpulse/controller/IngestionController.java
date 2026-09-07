@@ -2,8 +2,10 @@ package com.workpulse.controller;
 
 import com.workpulse.dto.HeartbeatDto;
 import com.workpulse.dto.IngestActivityDto;
+import com.workpulse.dto.IngestProcessResourcesDto;
 import com.workpulse.model.Activity;
 import com.workpulse.service.IngestionService;
+import com.workpulse.service.ProcessResourceService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,9 +15,11 @@ import org.springframework.web.bind.annotation.*;
 public class IngestionController {
 
     private final IngestionService ingestionService;
+    private final ProcessResourceService processResourceService;
 
-    public IngestionController(IngestionService ingestionService) {
+    public IngestionController(IngestionService ingestionService, ProcessResourceService processResourceService) {
         this.ingestionService = ingestionService;
+        this.processResourceService = processResourceService;
     }
 
     @PostMapping("/activity")
@@ -33,5 +37,11 @@ public class IngestionController {
     @GetMapping("/heartbeat")
     public ResponseEntity<HeartbeatDto> getLatestHeartbeat() {
         return ResponseEntity.ok(ingestionService.getLatestHeartbeat());
+    }
+
+    @PostMapping("/resources")
+    public ResponseEntity<Void> ingestResources(@RequestBody IngestProcessResourcesDto dto) {
+        processResourceService.processAndStore(dto);
+        return ResponseEntity.ok().build();
     }
 }

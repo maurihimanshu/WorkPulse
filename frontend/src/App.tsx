@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Navbar } from './components/Navbar';
+import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './pages/Dashboard';
 import { Timeline } from './pages/Timeline';
 import { Settings } from './pages/Settings';
@@ -9,6 +9,7 @@ import { Heartbeat } from './types';
 
 export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState('dashboard');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [isMonitoring, setIsMonitoring] = useState(true);
   const [heartbeat, setHeartbeat] = useState<Heartbeat | null>(null);
@@ -36,6 +37,33 @@ export const App: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Global Keyboard shortcuts: Ctrl+1..4 for navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+        if (e.key === '1') {
+          e.preventDefault();
+          setCurrentTab('dashboard');
+        } else if (e.key === '2') {
+          e.preventDefault();
+          setCurrentTab('timeline');
+        } else if (e.key === '3') {
+          e.preventDefault();
+          setCurrentTab('settings');
+        } else if (e.key === '4') {
+          e.preventDefault();
+          setCurrentTab('profile');
+        } else if (e.key.toLowerCase() === 'b') {
+          e.preventDefault();
+          setSidebarCollapsed((prev) => !prev);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const handleToggleMonitoring = async () => {
     try {
       const res = await api.toggleMonitoring();
@@ -56,10 +84,12 @@ export const App: React.FC = () => {
   }, [theme]);
 
   return (
-    <div className="app-container">
-      <Navbar
+    <div className="app-shell">
+      <Sidebar
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
+        collapsed={sidebarCollapsed}
+        setCollapsed={setSidebarCollapsed}
         isMonitoring={isMonitoring}
         onToggleMonitoring={handleToggleMonitoring}
         theme={theme}
@@ -67,12 +97,12 @@ export const App: React.FC = () => {
         currentApp={heartbeat?.appName || ''}
       />
 
-      <main className="main-content">
+      <div className="main-viewport">
         {currentTab === 'dashboard' && <Dashboard heartbeat={heartbeat} />}
         {currentTab === 'timeline' && <Timeline />}
         {currentTab === 'settings' && <Settings />}
         {currentTab === 'profile' && <Profile />}
-      </main>
+      </div>
     </div>
   );
 };

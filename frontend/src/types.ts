@@ -98,3 +98,26 @@ export interface WellbeingStats {
   burnoutRisk: string;
   fatigueWarning: boolean;
 }
+
+export interface ProcessResource {
+  pid: number;
+  name: string;
+  cpuPercent: number;
+  memoryMb: number;
+  isForeground: boolean;
+}
+
+export interface SystemResourceSummary {
+  timestamp: string;
+  totalCpuPercent: number;
+  totalMemoryMb: number;
+  usedMemoryMb: number;
+  totalMemoryPercent: number;
+  foregroundCpuPercent: number;
+  backgroundCpuPercent: number;
+  foregroundMemoryMb: number;
+  backgroundMemoryMb: number;
+  backgroundDrainRatio: number;
+  resourceHogsCount: number;
+  topProcesses: ProcessResource[];
+}

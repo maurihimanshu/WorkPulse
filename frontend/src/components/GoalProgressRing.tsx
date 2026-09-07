@@ -12,7 +12,7 @@ export const GoalProgressRing: React.FC<GoalProgressRingProps> = ({
 }) => {
   const targetSeconds = targetHours * 3600;
   const percentage = Math.min(100, Math.round((activeSeconds / targetSeconds) * 100));
-  const radius = 32;
+  const radius = 16;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
@@ -27,29 +27,31 @@ export const GoalProgressRing: React.FC<GoalProgressRingProps> = ({
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '0.85rem',
-        padding: '0.6rem 1rem',
-        borderRadius: '0.75rem',
-        backgroundColor: 'var(--bg-card)',
-        border: '1px solid var(--border)',
+        gap: '0.65rem',
+        padding: '0.35rem 0.75rem',
+        borderRadius: '10px',
+        backgroundColor: 'var(--bg-surface-elevated)',
+        border: '1px solid var(--border-glass)',
+        userSelect: 'none',
       }}
+      title={`Daily Focus Target: ${formatHours(activeSeconds)} of ${targetHours}h (${percentage}%)`}
     >
-      <div style={{ position: 'relative', width: 44, height: 44 }}>
-        <svg width="44" height="44" viewBox="0 0 76 76" style={{ transform: 'rotate(-90deg)' }}>
+      <div style={{ position: 'relative', width: 36, height: 36 }}>
+        <svg width="36" height="36" viewBox="0 0 40 40" style={{ transform: 'rotate(-90deg)' }}>
           <circle
-            cx="38"
-            cy="38"
+            cx="20"
+            cy="20"
             r={radius}
-            stroke="var(--border)"
-            strokeWidth="7"
+            stroke="var(--border-subtle)"
+            strokeWidth="4"
             fill="transparent"
           />
           <circle
-            cx="38"
-            cy="38"
+            cx="20"
+            cy="20"
             r={radius}
             stroke={percentage >= 100 ? '#10b981' : '#38bdf8'}
-            strokeWidth="7"
+            strokeWidth="4"
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
             strokeLinecap="round"
@@ -64,7 +66,8 @@ export const GoalProgressRing: React.FC<GoalProgressRingProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '0.7rem',
+            fontSize: '0.65rem',
+            fontFamily: 'var(--font-mono)',
             fontWeight: 700,
             color: 'var(--text-primary)',
           }}
@@ -74,17 +77,18 @@ export const GoalProgressRing: React.FC<GoalProgressRingProps> = ({
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-          <Target size={12} color="#38bdf8" />
-          <span>Daily Focus Target</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+          <Target size={11} color="#38bdf8" />
+          <span>Goal</span>
         </div>
-        <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+        <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
           {formatHours(activeSeconds)}{' '}
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 400 }}>
-            / {targetHours}h
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 400 }}>
+            /{targetHours}h
           </span>
         </div>
       </div>
     </div>
   );
 };
+

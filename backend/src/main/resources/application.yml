@@ -3,6 +3,9 @@ server:
   address: 127.0.0.1
 
 spring:
+  threads:
+    virtual:
+      enabled: true
   application:
     name: workpulse-backend
   datasource:

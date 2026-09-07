@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sliders, Plus, Trash2, Database, Save, CheckCircle } from 'lucide-react';
+import { Sliders, Plus, Trash2, Database, Save, CheckCircle, ShieldCheck, KeyRound } from 'lucide-react';
 import { api } from '../api';
 import { Category } from '../types';
 
@@ -56,44 +56,49 @@ export const Settings: React.FC = () => {
   };
 
   const handleDeleteCategory = async (id: string) => {
-    if (confirm('Delete this category rule?')) {
+    if (confirm('Delete this classification rule?')) {
       await api.deleteCategory(id);
       loadSettingsAndCategories();
     }
   };
 
   const handleClearDatabase = async () => {
-    if (confirm('DANGER: This will delete ALL logged activities permanently. Are you sure?')) {
+    if (confirm('DANGER: This will permanently wipe ALL historical telemetry activities from local SQLite. Are you sure?')) {
       await api.clearAllActivities();
-      alert('Activity history cleared successfully.');
+      alert('Local activity history cleared successfully.');
     }
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '900px' }}>
+    <div className="page-container" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '960px' }}>
       <div>
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
-          System Settings &amp; Rules
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em', margin: 0, color: 'var(--text-primary)' }}>
+          System Heuristics &amp; Rule Engine
         </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-          Configure idle detection heuristics, categorization patterns, and storage policies
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '0.2rem 0 0 0' }}>
+          Configure idle detection heuristics, process categorization patterns, and storage policies
         </p>
       </div>
 
       {/* Monitoring Thresholds Form */}
-      <div className="card">
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Sliders size={20} color="#3b82f6" />
-          <span>Activity Monitoring Parameters</span>
+      <div className="glass-panel" style={{ padding: '1.5rem' }}>
+        <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)' }}>
+          <Sliders size={18} color="#3b82f6" />
+          <span>Activity Sampling Parameters</span>
         </h2>
 
         <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-              Idle Inactivity Threshold: {settings.idleThresholdSeconds || 60} seconds
-            </label>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-              Seconds without mouse/keyboard movement before user is declared idle.
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Idle Detection Inactivity Threshold
+              </label>
+              <span style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#3b82f6' }}>
+                {settings.idleThresholdSeconds || 60} seconds
+              </span>
+            </div>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
+              Elapsed interval without mouse or keyboard inputs before declaring state as idle.
             </p>
             <input
               type="range"
@@ -102,39 +107,39 @@ export const Settings: React.FC = () => {
               step="5"
               value={settings.idleThresholdSeconds || 60}
               onChange={(e) => setSettings({ ...settings, idleThresholdSeconds: e.target.value })}
-              style={{ width: '100%' }}
+              style={{ width: '100%', accentColor: 'var(--accent-primary)', cursor: 'pointer' }}
             />
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-              Sampling Poll Interval: {settings.pollIntervalSeconds || '1.0'} seconds
+            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
+              Sampling Poll Frequency
             </label>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-              Frequency at which the background collector samples the active OS window.
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
+              Rate at which the Win32 daemon collects foreground and background process metrics.
             </p>
             <select
               className="select"
               value={settings.pollIntervalSeconds || '1.0'}
               onChange={(e) => setSettings({ ...settings, pollIntervalSeconds: e.target.value })}
-              style={{ width: '200px' }}
+              style={{ width: '220px' }}
             >
-              <option value="0.5">0.5s (High Precision)</option>
-              <option value="1.0">1.0s (Recommended)</option>
-              <option value="2.0">2.0s (Low Resource)</option>
-              <option value="5.0">5.0s (Battery Saver)</option>
+              <option value="0.5">0.5s (High Precision Telemetry)</option>
+              <option value="1.0">1.0s (Enterprise Recommended)</option>
+              <option value="2.0">2.0s (Low CPU Footprint)</option>
+              <option value="5.0">5.0s (Battery Saver Mode)</option>
             </select>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.5rem' }}>
             <button type="submit" className="btn btn-primary">
-              <Save size={16} />
+              <Save size={15} />
               <span>Save Configuration</span>
             </button>
             {savedSuccess && (
-              <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem' }}>
-                <CheckCircle size={16} />
-                <span>Settings saved successfully!</span>
+              <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.82rem', fontWeight: 600 }}>
+                <CheckCircle size={15} />
+                <span>Configuration committed successfully!</span>
               </span>
             )}
           </div>
@@ -142,41 +147,41 @@ export const Settings: React.FC = () => {
       </div>
 
       {/* Category Rules Management */}
-      <div className="card">
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-          Categorization Rules
+      <div className="glass-panel" style={{ padding: '1.5rem' }}>
+        <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.35rem', color: 'var(--text-primary)' }}>
+          Categorization &amp; Classification Rules
         </h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1rem' }}>
-          Map executable and window title keywords to automatic productivity categories.
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '1.25rem' }}>
+          Map executable names and window titles to automatic productivity categories.
         </p>
 
         {/* Existing Categories Table */}
-        <div className="table-container" style={{ marginBottom: '1.5rem' }}>
-          <table>
+        <div style={{ overflowX: 'auto', marginBottom: '1.25rem', border: '1px solid var(--border-glass)', borderRadius: '10px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
             <thead>
-              <tr>
-                <th>Color</th>
-                <th>Category Name</th>
-                <th>Match Keywords</th>
-                <th style={{ textAlign: 'center' }}>Action</th>
+              <tr style={{ background: 'var(--bg-surface-elevated)', borderBottom: '1px solid var(--border-glass)' }}>
+                <th style={{ padding: '0.65rem 1rem', textAlign: 'left', fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Color</th>
+                <th style={{ padding: '0.65rem 1rem', textAlign: 'left', fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Domain Name</th>
+                <th style={{ padding: '0.65rem 1rem', textAlign: 'left', fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Matching Keywords</th>
+                <th style={{ padding: '0.65rem 1rem', textAlign: 'center', fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {categories.map((c) => (
-                <tr key={c.id}>
-                  <td>
-                    <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: '50%', background: c.color }}></span>
+                <tr key={c.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                  <td style={{ padding: '0.65rem 1rem' }}>
+                    <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: c.color, boxShadow: `0 0 8px ${c.color}` }} />
                   </td>
-                  <td style={{ fontWeight: 600 }}>{c.name}</td>
-                  <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{c.matchPattern}</td>
-                  <td style={{ textAlign: 'center' }}>
+                  <td style={{ padding: '0.65rem 1rem', fontWeight: 600, color: 'var(--text-primary)' }}>{c.name}</td>
+                  <td style={{ padding: '0.65rem 1rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>{c.matchPattern}</td>
+                  <td style={{ padding: '0.65rem 1rem', textAlign: 'center' }}>
                     <button
                       className="btn btn-danger"
-                      style={{ padding: '0.35rem' }}
+                      style={{ padding: '0.3rem', borderRadius: '6px' }}
                       onClick={() => handleDeleteCategory(c.id)}
-                      title="Delete category"
+                      title="Delete category rule"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={13} />
                     </button>
                   </td>
                 </tr>
@@ -188,7 +193,7 @@ export const Settings: React.FC = () => {
         {/* Add Category Form */}
         <form onSubmit={handleAddCategory} style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>Category Name</label>
+            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>Category Name</label>
             <input
               type="text"
               className="input"
@@ -196,52 +201,53 @@ export const Settings: React.FC = () => {
               value={newCatName}
               onChange={(e) => setNewCatName(e.target.value)}
               required
+              style={{ fontSize: '0.82rem' }}
             />
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>Color</label>
+            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>Badge Color</label>
             <input
               type="color"
               value={newCatColor}
               onChange={(e) => setNewCatColor(e.target.value)}
-              style={{ width: '45px', height: '38px', padding: 0, border: 'none', borderRadius: '8px', cursor: 'pointer', background: 'transparent' }}
+              style={{ width: '42px', height: '36px', padding: 0, border: 'none', borderRadius: '8px', cursor: 'pointer', background: 'transparent' }}
             />
           </div>
 
           <div style={{ flex: 1, minWidth: '220px' }}>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>Match Keywords (comma separated)</label>
+            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>Match Keywords (comma separated)</label>
             <input
               type="text"
               className="input"
-              style={{ width: '100%' }}
+              style={{ width: '100%', fontSize: '0.82rem' }}
               placeholder="figma,photoshop,illustrator,canva"
               value={newCatPattern}
               onChange={(e) => setNewCatPattern(e.target.value)}
             />
           </div>
 
-          <button type="submit" className="btn btn-primary">
-            <Plus size={16} />
+          <button type="submit" className="btn btn-primary" style={{ fontSize: '0.82rem' }}>
+            <Plus size={15} />
             <span>Add Rule</span>
           </button>
         </form>
       </div>
 
       {/* Database Storage Management */}
-      <div className="card" style={{ borderColor: 'rgba(239, 68, 68, 0.3)' }}>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#ef4444' }}>
-          <Database size={20} />
+      <div className="glass-panel" style={{ padding: '1.5rem', borderColor: 'rgba(244, 63, 94, 0.25)' }}>
+        <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-rose)' }}>
+          <Database size={18} />
           <span>Local SQLite Storage Management</span>
         </h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
-          Database file: <code style={{ color: '#60a5fa' }}>data/workpulse.db</code>. All records are stored locally with zero cloud telemetry.
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '1.25rem' }}>
+          Database file: <code style={{ color: '#38bdf8', fontFamily: 'var(--font-mono)' }}>data/workpulse.db</code> (WAL Mode). All telemetry is strictly stored locally with zero network egress.
         </p>
 
-        <div style={{ display: 'flex', gap: '1rem' }}>
+        <div>
           <button className="btn btn-danger" onClick={handleClearDatabase}>
-            <Trash2 size={16} />
-            <span>Clear All Activity Logs</span>
+            <Trash2 size={15} />
+            <span>Clear Historical Database</span>
           </button>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Trash2, Calendar, Filter, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { Search, Trash2, ChevronLeft, ChevronRight, RefreshCw, Calendar, Clock, Layers } from 'lucide-react';
 import { api } from '../api';
 import { Activity } from '../types';
 
@@ -58,7 +58,7 @@ export const Timeline: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this activity log?')) {
+    if (confirm('Delete this activity telemetry record?')) {
       await api.deleteActivity(id);
       loadActivities();
     }
@@ -81,124 +81,206 @@ export const Timeline: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="page-container" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {/* Top Header Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
-            Activity Timeline
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em', margin: 0, color: 'var(--text-primary)' }}>
+            Activity Log &amp; Audit Trail
           </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            {totalElements} recorded application sessions in database
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '0.2rem 0 0 0' }}>
+            Historical session telemetry with exact time intervals and active application focus
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <span
+            style={{
+              fontSize: '0.75rem',
+              fontFamily: 'var(--font-mono)',
+              padding: '0.25rem 0.65rem',
+              borderRadius: '9999px',
+              backgroundColor: 'var(--bg-surface-elevated)',
+              border: '1px solid var(--border-glass)',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            {totalElements} total entries
+          </span>
           <button className="btn btn-secondary" onClick={loadActivities} title="Refresh logs">
-            <RefreshCw size={16} />
+            <RefreshCw size={14} />
             <span>Refresh</span>
           </button>
         </div>
       </div>
 
-      {/* Filters and Search Bar */}
-      <div className="card" style={{ padding: '1rem' }}>
+      {/* Glass Search and Date Range Control */}
+      <div className="glass-panel" style={{ padding: '0.85rem 1.25rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '0.5rem', flex: 1, minWidth: '280px' }}>
             <div style={{ position: 'relative', flex: 1 }}>
-              <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+              <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
               <input
                 type="text"
                 className="input"
-                style={{ width: '100%', paddingLeft: '2.5rem' }}
+                style={{ width: '100%', paddingLeft: '2.4rem', fontSize: '0.82rem' }}
                 placeholder="Search by application or window title..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <button type="submit" className="btn btn-primary">
+            <button type="submit" className="btn btn-primary" style={{ fontSize: '0.82rem' }}>
               Search
             </button>
           </form>
 
-          <div style={{ display: 'flex', gap: '0.5rem', background: 'var(--bg-surface-hover)', padding: '0.25rem', borderRadius: '8px' }}>
-            {(['today', 'yesterday', '7days', 'all'] as const).map((f) => (
-              <button
-                key={f}
-                className={`btn ${dateFilter === f ? 'btn-primary' : 'btn-secondary'}`}
-                style={{ padding: '0.35rem 0.85rem', fontSize: '0.8rem', border: 'none' }}
-                onClick={() => {
-                  setDateFilter(f);
-                  setPage(0);
-                }}
-              >
-                {f === 'today' ? 'Today' : f === 'yesterday' ? 'Yesterday' : f === '7days' ? 'Last 7 Days' : 'All Time'}
-              </button>
-            ))}
+          {/* Date Segmented Control */}
+          <div
+            style={{
+              display: 'flex',
+              gap: '2px',
+              background: 'var(--bg-surface-elevated)',
+              border: '1px solid var(--border-glass)',
+              padding: '3px',
+              borderRadius: '9px',
+            }}
+          >
+            {(['today', 'yesterday', '7days', 'all'] as const).map((f) => {
+              const isSelected = dateFilter === f;
+              return (
+                <button
+                  key={f}
+                  style={{
+                    padding: '0.35rem 0.75rem',
+                    fontSize: '0.78rem',
+                    fontWeight: isSelected ? 600 : 500,
+                    borderRadius: '7px',
+                    border: 'none',
+                    background: isSelected ? 'var(--bg-surface-active)' : 'transparent',
+                    color: isSelected ? 'var(--text-primary)' : 'var(--text-muted)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onClick={() => {
+                    setDateFilter(f);
+                    setPage(0);
+                  }}
+                >
+                  {f === 'today' ? 'Today' : f === 'yesterday' ? 'Yesterday' : f === '7days' ? '7 Days' : 'All Time'}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
 
-      {/* Activities Table */}
-      <div className="card" style={{ padding: '0' }}>
-        <div className="table-container">
-          <table>
+      {/* Activities Glass Table */}
+      <div className="glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
             <thead>
-              <tr>
-                <th>Application</th>
-                <th>Window Title</th>
-                <th>Category</th>
-                <th>Start Time</th>
-                <th>Active Duration</th>
-                <th>Idle Duration</th>
-                <th style={{ textAlign: 'center' }}>Action</th>
+              <tr style={{ background: 'var(--bg-surface-elevated)', borderBottom: '1px solid var(--border-glass)' }}>
+                <th style={{ padding: '0.75rem 1.25rem', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Application
+                </th>
+                <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Window Title
+                </th>
+                <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Domain Category
+                </th>
+                <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Start Time
+                </th>
+                <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Active Focus
+                </th>
+                <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Idle
+                </th>
+                <th style={{ padding: '0.75rem 1.25rem', textAlign: 'center', fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Action
+                </th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
                   <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-                    Loading activities...
+                    Loading telemetry entries...
                   </td>
                 </tr>
               ) : activities.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-                    No activities found matching your criteria.
+                    No activity logs recorded for this timeframe.
                   </td>
                 </tr>
               ) : (
                 activities.map((a) => (
-                  <tr key={a.id}>
-                    <td style={{ fontWeight: 600 }}>{a.appName}</td>
-                    <td style={{ maxWidth: '350px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-secondary)' }} title={a.windowTitle}>
-                      {a.windowTitle}
+                  <tr
+                    key={a.id}
+                    style={{
+                      borderBottom: '1px solid var(--border-subtle)',
+                      transition: 'background 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-surface-hover)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <td style={{ padding: '0.8rem 1.25rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {a.appName}
                     </td>
-                    <td>
-                      <span className="badge" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' }}>
+                    <td
+                      style={{
+                        padding: '0.8rem 1rem',
+                        maxWidth: '360px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        color: 'var(--text-muted)',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '0.8rem',
+                      }}
+                      title={a.windowTitle}
+                    >
+                      {a.windowTitle || 'Foreground focus'}
+                    </td>
+                    <td style={{ padding: '0.8rem 1rem' }}>
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
+                          padding: '0.15rem 0.5rem',
+                          borderRadius: '4px',
+                          background: 'rgba(59, 130, 246, 0.12)',
+                          color: '#60a5fa',
+                          border: '1px solid rgba(59, 130, 246, 0.25)',
+                        }}
+                      >
                         {a.category}
                       </span>
                     </td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                    <td style={{ padding: '0.8rem 1rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.78rem' }}>
                       {formatDateTime(a.startTime)}
                     </td>
-                    <td>
-                      <span style={{ fontWeight: 600, color: '#10b981' }}>
+                    <td style={{ padding: '0.8rem 1rem' }}>
+                      <span style={{ fontWeight: 700, color: '#10b981', fontFamily: 'var(--font-mono)' }}>
                         {formatDuration(a.activeTime)}
                       </span>
                     </td>
-                    <td>
-                      <span style={{ color: a.idleTime > 0 ? '#f59e0b' : 'var(--text-muted)' }}>
+                    <td style={{ padding: '0.8rem 1rem' }}>
+                      <span style={{ color: a.idleTime > 0 ? '#f59e0b' : 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                         {formatDuration(a.idleTime)}
                       </span>
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td style={{ padding: '0.8rem 1.25rem', textAlign: 'center' }}>
                       <button
                         className="btn btn-danger"
                         style={{ padding: '0.35rem', borderRadius: '6px' }}
-                        title="Delete log"
+                        title="Delete log entry"
                         onClick={() => handleDelete(a.id)}
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={13} />
                       </button>
                     </td>
                   </tr>
@@ -209,8 +291,17 @@ export const Timeline: React.FC = () => {
         </div>
 
         {/* Pagination Footer */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderTop: '1px solid var(--border-color)' }}>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '0.85rem 1.5rem',
+            borderTop: '1px solid var(--border-glass)',
+            background: 'var(--bg-surface-elevated)',
+          }}
+        >
+          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
             Page {page + 1} of {Math.max(totalPages, 1)} ({totalElements} total entries)
           </span>
 
@@ -219,19 +310,19 @@ export const Timeline: React.FC = () => {
               className="btn btn-secondary"
               disabled={page <= 0}
               onClick={() => setPage((p) => Math.max(0, p - 1))}
-              style={{ opacity: page <= 0 ? 0.5 : 1, cursor: page <= 0 ? 'not-allowed' : 'pointer' }}
+              style={{ opacity: page <= 0 ? 0.4 : 1, cursor: page <= 0 ? 'not-allowed' : 'pointer', fontSize: '0.78rem', padding: '0.35rem 0.75rem' }}
             >
-              <ChevronLeft size={16} />
+              <ChevronLeft size={14} />
               <span>Previous</span>
             </button>
             <button
               className="btn btn-secondary"
               disabled={page >= totalPages - 1}
               onClick={() => setPage((p) => p + 1)}
-              style={{ opacity: page >= totalPages - 1 ? 0.5 : 1, cursor: page >= totalPages - 1 ? 'not-allowed' : 'pointer' }}
+              style={{ opacity: page >= totalPages - 1 ? 0.4 : 1, cursor: page >= totalPages - 1 ? 'not-allowed' : 'pointer', fontSize: '0.78rem', padding: '0.35rem 0.75rem' }}
             >
               <span>Next</span>
-              <ChevronRight size={16} />
+              <ChevronRight size={14} />
             </button>
           </div>
         </div>

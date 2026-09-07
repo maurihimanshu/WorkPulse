@@ -19,46 +19,37 @@ export const DeepWorkCard: React.FC<DeepWorkCardProps> = ({ stats }) => {
   const getRatingBadgeStyle = (rating: string) => {
     switch (rating) {
       case 'Flow State':
-        return { bg: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: 'rgba(16, 185, 129, 0.3)' };
+        return { bg: 'rgba(16, 185, 129, 0.12)', color: '#10b981', border: 'rgba(16, 185, 129, 0.25)' };
       case 'Balanced':
-        return { bg: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: 'rgba(56, 189, 248, 0.3)' };
+        return { bg: 'rgba(6, 182, 212, 0.12)', color: '#06b6d4', border: 'rgba(6, 182, 212, 0.25)' };
       default:
-        return { bg: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: 'rgba(245, 158, 11, 0.3)' };
+        return { bg: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b', border: 'rgba(245, 158, 11, 0.25)' };
     }
   };
 
   const badge = getRatingBadgeStyle(stats.focusRating);
 
   return (
-    <div
-      style={{
-        backgroundColor: 'var(--bg-card)',
-        borderRadius: '1rem',
-        border: '1px solid var(--border)',
-        padding: '1.25rem',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '1rem',
-      }}
-    >
+    <div className="glass-panel" style={{ padding: '1.35rem', display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
           <div
             style={{
-              padding: '0.4rem',
-              borderRadius: '0.5rem',
-              backgroundColor: 'rgba(245, 158, 11, 0.15)',
+              padding: '0.5rem',
+              borderRadius: '10px',
+              backgroundColor: 'rgba(245, 158, 11, 0.12)',
               color: '#f59e0b',
               display: 'flex',
+              border: '1px solid rgba(245, 158, 11, 0.25)',
             }}
           >
             <Flame size={18} />
           </div>
           <div>
-            <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.01em' }}>
               Deep Work &amp; Focus Flow
             </h3>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.1rem 0 0 0' }}>
               Uninterrupted concentration sessions &amp; attention switches
             </p>
           </div>
@@ -66,13 +57,15 @@ export const DeepWorkCard: React.FC<DeepWorkCardProps> = ({ stats }) => {
 
         <span
           style={{
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            padding: '0.25rem 0.65rem',
+            fontSize: '0.72rem',
+            fontWeight: 700,
+            padding: '0.2rem 0.65rem',
             borderRadius: '9999px',
             backgroundColor: badge.bg,
             color: badge.color,
             border: `1px solid ${badge.border}`,
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
           }}
         >
           {stats.focusRating}
@@ -83,52 +76,53 @@ export const DeepWorkCard: React.FC<DeepWorkCardProps> = ({ stats }) => {
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-          gap: '0.75rem',
+          gap: '0.85rem',
         }}
       >
         <div
           style={{
-            padding: '0.75rem',
-            borderRadius: '0.75rem',
-            backgroundColor: 'var(--bg-card-secondary, rgba(255,255,255,0.03))',
-            border: '1px solid var(--border)',
+            padding: '0.85rem',
+            borderRadius: '10px',
+            backgroundColor: 'var(--bg-surface-elevated)',
+            border: '1px solid var(--border-subtle)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
             <Award size={13} color="#f59e0b" />
             <span>Deep Work</span>
           </div>
-          <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.25rem' }}>
+          <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.25rem', fontFamily: 'var(--font-mono)' }}>
             {formatSeconds(stats.deepWorkSeconds)}
           </div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
-            Flow Score: {stats.flowScore}/100
+          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+            Flow Score: <span style={{ color: '#f59e0b', fontWeight: 600 }}>{stats.flowScore}/100</span>
           </div>
         </div>
 
         <div
           style={{
-            padding: '0.75rem',
-            borderRadius: '0.75rem',
-            backgroundColor: 'var(--bg-card-secondary, rgba(255,255,255,0.03))',
-            border: '1px solid var(--border)',
+            padding: '0.85rem',
+            borderRadius: '10px',
+            backgroundColor: 'var(--bg-surface-elevated)',
+            border: '1px solid var(--border-subtle)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
             <Compass size={13} color="#10b981" />
             <span>Longest Streak</span>
           </div>
-          <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.25rem' }}>
+          <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.25rem', fontFamily: 'var(--font-mono)' }}>
             {formatSeconds(stats.longestStreakSeconds)}
           </div>
           <div
             style={{
-              fontSize: '0.7rem',
+              fontSize: '0.68rem',
               color: '#10b981',
-              marginTop: '0.1rem',
+              marginTop: '0.15rem',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
+              fontWeight: 500,
             }}
           >
             {stats.longestStreakApp || 'None'}
@@ -137,25 +131,26 @@ export const DeepWorkCard: React.FC<DeepWorkCardProps> = ({ stats }) => {
 
         <div
           style={{
-            padding: '0.75rem',
-            borderRadius: '0.75rem',
-            backgroundColor: 'var(--bg-card-secondary, rgba(255,255,255,0.03))',
-            border: '1px solid var(--border)',
+            padding: '0.85rem',
+            borderRadius: '10px',
+            backgroundColor: 'var(--bg-surface-elevated)',
+            border: '1px solid var(--border-subtle)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-            <RefreshCw size={13} color="#38bdf8" />
-            <span>Context Switches</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+            <RefreshCw size={13} color="#06b6d4" />
+            <span>Switches / Hr</span>
           </div>
-          <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.25rem' }}>
+          <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.25rem', fontFamily: 'var(--font-mono)' }}>
             {stats.contextSwitchesPerHour}
-            <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-secondary)' }}> / hr</span>
+            <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted)' }}> /h</span>
           </div>
-          <div style={{ fontSize: '0.7rem', color: stats.contextSwitchesPerHour < 20 ? '#10b981' : '#f59e0b', marginTop: '0.1rem' }}>
-            {stats.contextSwitchesPerHour < 20 ? 'Low Distraction' : 'High Multitasking'}
+          <div style={{ fontSize: '0.68rem', color: stats.contextSwitchesPerHour < 20 ? '#10b981' : '#f59e0b', marginTop: '0.15rem', fontWeight: 500 }}>
+            {stats.contextSwitchesPerHour < 20 ? 'Focused Flow' : 'High Multitasking'}
           </div>
         </div>
       </div>
     </div>
   );
 };
+

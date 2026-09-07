@@ -8,6 +8,7 @@ import sys
 import time
 import urllib.request
 import urllib.error
+import psutil
 from pathlib import Path
 
 CURRENT_DIR = Path(__file__).parent.resolve()
@@ -17,6 +18,7 @@ for p in (str(CURRENT_DIR), str(PROJECT_ROOT)):
         sys.path.insert(0, p)
 
 from collector.os_monitors.platform_monitor import create_platform_monitor
+from collector.outbox_spooler import OutboxSpooler
 
 logging.basicConfig(
     level=logging.INFO,
@@ -41,27 +43,21 @@ class CollectorAgent:
         self.session_active_seconds = 0.0
         self.session_idle_seconds = 0.0
         self.is_idle = False
-        self.outbox = []
         self.last_heartbeat = 0.0
+        self.last_resource_sample = 0.0
+        self.resource_sample_interval = 5.0
+        self.spool_db = PROJECT_ROOT / 'data' / '.outbox.db'
+        self.spooler = OutboxSpooler(self.spool_db, self.api_url)
 
     def _post_json(self, endpoint: str, payload: dict) -> bool:
         url = f'{self.api_url}{endpoint}'
         data = json.dumps(payload).encode('utf-8')
         req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'}, method='POST')
         try:
-            with urllib.request.urlopen(req, timeout=2.0) as resp:
+            with urllib.request.urlopen(req, timeout=1.5) as resp:
                 return resp.status in (200, 201, 204)
         except Exception:
             return False
-
-    def _flush_outbox(self):
-        if not self.outbox:
-            return
-        remaining = []
-        for item in self.outbox:
-            if not self._post_json('/api/ingest/activity', item):
-                remaining.append(item)
-        self.outbox = remaining[:500]
 
     def _close_current_activity(self):
         if self.session_active_seconds < 0.5 and self.session_idle_seconds < 0.5:
@@ -79,8 +75,7 @@ class CollectorAgent:
             'category': 'Uncategorized'
         }
         logger.info(f'Logged session: [{activity_data["appName"]}] active={activity_data["activeTime"]}s, idle={activity_data["idleTime"]}s')
-        if not self._post_json('/api/ingest/activity', activity_data):
-            self.outbox.append(activity_data)
+        self.spooler.enqueue('/api/ingest/activity', activity_data)
 
     def _send_heartbeat(self, idle_seconds: float):
         now = time.time()
@@ -100,8 +95,70 @@ class CollectorAgent:
         }
         self._post_json('/api/ingest/heartbeat', heartbeat_data)
 
+    def _sample_and_send_resources(self):
+        now = time.time()
+        if now - self.last_resource_sample < self.resource_sample_interval:
+            return
+        self.last_resource_sample = now
+        try:
+            cpu_percent = psutil.cpu_percent(interval=None)
+            vmem = psutil.virtual_memory()
+            total_mem_mb = round(vmem.total / (1024 * 1024), 1)
+            used_mem_mb = round(vmem.used / (1024 * 1024), 1)
+            mem_percent = vmem.percent
+
+            logical_cores = psutil.cpu_count(logical=True) or 1
+            curr_pid = self.current_pid or 0
+            processes = []
+
+            for p in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_info']):
+                try:
+                    p_info = p.info
+                    p_pid = p_info.get('pid') or 0
+                    p_name = p_info.get('name') or 'Unknown'
+
+                    # Filter out Windows System Idle Process (PID 0) which represents unused CPU cycles
+                    if p_pid == 0 or p_name in ('System Idle Process', 'idle'):
+                        continue
+
+                    raw_cpu = p_info.get('cpu_percent') or 0.0
+                    # Normalize CPU % by number of logical CPU cores so total per process cannot exceed 100%
+                    p_cpu = round(raw_cpu / logical_cores, 1)
+
+                    mem_info = p_info.get('memory_info')
+                    rss_bytes = mem_info.rss if mem_info else 0
+                    p_mem_mb = round(rss_bytes / (1024 * 1024), 1)
+
+                    is_fg = (p_pid == curr_pid and curr_pid > 0)
+                    if is_fg or p_cpu > 0.5 or p_mem_mb > 50.0:
+                        processes.append({
+                            'pid': p_pid,
+                            'name': p_name,
+                            'cpuPercent': p_cpu,
+                            'memoryMb': p_mem_mb,
+                            'isForeground': is_fg
+                        })
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                    continue
+
+            processes.sort(key=lambda x: (x['cpuPercent'], x['memoryMb']), reverse=True)
+            processes = processes[:30]
+
+            payload = {
+                'timestamp': datetime.datetime.now().isoformat(),
+                'totalCpuPercent': round(cpu_percent, 1),
+                'totalMemoryMb': total_mem_mb,
+                'usedMemoryMb': used_mem_mb,
+                'totalMemoryPercent': round(mem_percent, 1),
+                'processes': processes
+            }
+            self.spooler.enqueue('/api/ingest/resources', payload)
+        except Exception as e:
+            logger.debug(f'Failed to sample process resources: {e}')
+
     def run(self):
         logger.info(f'WorkPulse Collector started. Target: {self.api_url}')
+        self.spooler.start()
         self.running = True
         self.session_start = datetime.datetime.now()
         self.last_tick = datetime.datetime.now()
@@ -157,8 +214,8 @@ class CollectorAgent:
                     self.session_active_seconds += delta
                     self.is_idle = False
 
-                self._flush_outbox()
                 self._send_heartbeat(idle_sec)
+                self._sample_and_send_resources()
 
                 elapsed = time.time() - loop_start
                 sleep_time = max(0.1, self.poll_interval - elapsed)
@@ -167,11 +224,12 @@ class CollectorAgent:
             logger.info('Stopping collector...')
         finally:
             self._close_current_activity()
-            self._flush_outbox()
+            self.spooler.stop()
             logger.info('Collector stopped.')
 
     def stop(self):
         self.running = False
+        self.spooler.stop()
 
 def main():
     parser = argparse.ArgumentParser(description='WorkPulse OS Collector')
