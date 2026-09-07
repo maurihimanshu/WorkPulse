@@ -1,8 +1,8 @@
-﻿; WorkPulse Windows Inno Setup Script
+; WorkPulse Windows Inno Setup Script
 ; Commercial-grade installer with desktop shortcut, start menu entry, autostart, and uninstaller.
 
 #ifndef AppVersion
-#define AppVersion "0.2.0"
+#define AppVersion "0.2.1"
 #endif
 
 #define AppName "WorkPulse"

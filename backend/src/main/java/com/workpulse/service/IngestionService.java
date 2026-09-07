@@ -18,11 +18,15 @@ public class IngestionService {
 
     private final ActivityRepository activityRepository;
     private final CategoryRepository categoryRepository;
+    private final SseStreamService sseStreamService;
     private final AtomicReference<HeartbeatDto> latestHeartbeat = new AtomicReference<>(new HeartbeatDto());
 
-    public IngestionService(ActivityRepository activityRepository, CategoryRepository categoryRepository) {
+    public IngestionService(ActivityRepository activityRepository,
+                            CategoryRepository categoryRepository,
+                            SseStreamService sseStreamService) {
         this.activityRepository = activityRepository;
         this.categoryRepository = categoryRepository;
+        this.sseStreamService = sseStreamService;
         initDefaultCategories();
     }
 
@@ -60,6 +64,7 @@ public class IngestionService {
             dto.setTimestamp(LocalDateTime.now());
         }
         latestHeartbeat.set(dto);
+        sseStreamService.broadcast("heartbeat", dto);
     }
 
     public HeartbeatDto getLatestHeartbeat() {

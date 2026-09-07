@@ -66,6 +66,51 @@ export const api = {
     return res.json();
   },
 
+  async getDeepWork(startDate?: string, endDate?: string): Promise<import('./types').DeepWorkStats> {
+    const params = new URLSearchParams();
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
+    const res = await fetch(`${API_BASE}/stats/deep-work?${params.toString()}`);
+    if (!res.ok) throw new Error('Failed to fetch deep work stats');
+    return res.json();
+  },
+
+  async getProjects(startDate?: string, endDate?: string, limit = 6): Promise<import('./types').ProjectBreakdown[]> {
+    const params = new URLSearchParams();
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
+    params.set('limit', limit.toString());
+    const res = await fetch(`${API_BASE}/stats/projects?${params.toString()}`);
+    if (!res.ok) throw new Error('Failed to fetch project breakdown');
+    return res.json();
+  },
+
+  async getWellbeing(startDate?: string, endDate?: string): Promise<import('./types').WellbeingStats> {
+    const params = new URLSearchParams();
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
+    const res = await fetch(`${API_BASE}/stats/wellbeing?${params.toString()}`);
+    if (!res.ok) throw new Error('Failed to fetch wellbeing stats');
+    return res.json();
+  },
+
+  async downloadCsvExport(startDate?: string, endDate?: string): Promise<void> {
+    const params = new URLSearchParams();
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
+    const res = await fetch(`${API_BASE}/stats/export?${params.toString()}`);
+    if (!res.ok) throw new Error('Failed to export CSV');
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `workpulse-report-${startDate || 'all'}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  },
+
   async getActivities(
     startDate?: string,
     endDate?: string,
@@ -142,5 +187,17 @@ export const api = {
 
   async deleteCategory(id: string): Promise<void> {
     await fetch(`${API_BASE}/settings/categories/${id}`, { method: 'DELETE' });
+  },
+
+  async getCurrentResources(): Promise<import('./types').SystemResourceSummary> {
+    const res = await fetch(`${API_BASE}/stats/resources/current`);
+    if (!res.ok) throw new Error('Failed to fetch current resources');
+    return res.json();
+  },
+
+  async getResourceHogs(): Promise<import('./types').ProcessResource[]> {
+    const res = await fetch(`${API_BASE}/stats/resources/hogs`);
+    if (!res.ok) throw new Error('Failed to fetch resource hogs');
+    return res.json();
   },
 };

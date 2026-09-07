@@ -7,6 +7,8 @@ and launches the System Tray resident application in the taskbar notification ar
 """
 
 import argparse
+import datetime
+import json
 import os
 import shutil
 import subprocess
@@ -16,6 +18,59 @@ import time
 import urllib.request
 import webbrowser
 from pathlib import Path
+
+_job_handle = None
+
+def assign_process_to_job(proc_handle):
+    """Ensure child Java backend process is automatically killed if launcher is terminated."""
+    global _job_handle
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        from ctypes import wintypes
+        kernel32 = ctypes.windll.kernel32
+        if _job_handle is None:
+            _job_handle = kernel32.CreateJobObjectW(None, None)
+            if not _job_handle:
+                return
+            class IO_COUNTERS(ctypes.Structure):
+                _fields_ = [
+                    ("ReadOperationCount", ctypes.c_uint64),
+                    ("WriteOperationCount", ctypes.c_uint64),
+                    ("OtherOperationCount", ctypes.c_uint64),
+                    ("ReadTransferCount", ctypes.c_uint64),
+                    ("WriteTransferCount", ctypes.c_uint64),
+                    ("OtherTransferCount", ctypes.c_uint64),
+                ]
+            class JOBOBJECT_BASIC_LIMIT_INFORMATION(ctypes.Structure):
+                _fields_ = [
+                    ("PerProcessUserTimeLimit", ctypes.c_int64),
+                    ("PerJobUserTimeLimit", ctypes.c_int64),
+                    ("LimitFlags", wintypes.DWORD),
+                    ("MinimumWorkingSetSize", ctypes.c_size_t),
+                    ("MaximumWorkingSetSize", ctypes.c_size_t),
+                    ("ActiveProcessLimit", wintypes.DWORD),
+                    ("Affinity", ctypes.c_size_t),
+                    ("PriorityClass", wintypes.DWORD),
+                    ("SchedulingClass", wintypes.DWORD),
+                ]
+            class JOBOBJECT_EXTENDED_LIMIT_INFORMATION(ctypes.Structure):
+                _fields_ = [
+                    ("BasicLimitInformation", JOBOBJECT_BASIC_LIMIT_INFORMATION),
+                    ("IoInfo", IO_COUNTERS),
+                    ("ProcessMemoryLimit", ctypes.c_size_t),
+                    ("JobMemoryLimit", ctypes.c_size_t),
+                    ("PeakProcessMemoryLimit", ctypes.c_size_t),
+                    ("PeakJobMemoryLimit", ctypes.c_size_t),
+                ]
+            info = JOBOBJECT_EXTENDED_LIMIT_INFORMATION()
+            info.BasicLimitInformation.LimitFlags = 0x2000  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+            kernel32.SetInformationJobObject(_job_handle, 9, ctypes.byref(info), ctypes.sizeof(info))
+
+        kernel32.AssignProcessToJobObject(_job_handle, int(proc_handle))
+    except Exception as e:
+        pass
 
 # Detect frozen PyInstaller mode
 IS_FROZEN = getattr(sys, "frozen", False)
@@ -149,19 +204,54 @@ def find_backend_jar() -> Path | None:
     return None
 
 
-def wait_for_backend(url="http://localhost:9876/api/control/status", timeout=50):
+def wait_for_backend(url="http://localhost:9876/api/control/status", timeout=180, proc=None):
     """Wait until Spring Boot backend is responding."""
     start = time.time()
-    print("[INFO] Waiting for WorkPulse backend to initialize...")
+    last_tick = 0
+    print(f"[INFO] Waiting for WorkPulse backend to initialize (timeout={timeout}s)...")
     while time.time() - start < timeout:
+        if proc and proc.poll() is not None:
+            print(f"[ERROR] Backend process terminated prematurely with exit code {proc.returncode}.")
+            return False
+        elapsed = int(time.time() - start)
+        if elapsed > 0 and elapsed % 5 == 0 and elapsed != last_tick:
+            last_tick = elapsed
+            print(f"[INFO] Waiting for backend... ({elapsed}s elapsed)")
         try:
             with urllib.request.urlopen(url, timeout=1.5) as resp:
                 if resp.status == 200:
-                    print("[INFO] WorkPulse backend is healthy and ready.")
+                    print(f"[INFO] WorkPulse backend is healthy and ready ({elapsed}s).")
                     return True
         except Exception:
             time.sleep(1)
     return False
+
+
+def acquire_instance_lock(port: int):
+    lock_file = DATA_DIR / "workpulse.lock"
+    try:
+        if lock_file.exists():
+            with open(lock_file, "r") as f:
+                data = json.load(f)
+            old_pid = data.get("pid")
+            import psutil
+            if old_pid and psutil.pid_exists(old_pid):
+                print(f"[WARN] Existing WorkPulse instance detected (PID {old_pid}) on port {data.get('port', 9876)}.")
+    except Exception:
+        pass
+    try:
+        with open(lock_file, "w") as f:
+            json.dump({"pid": os.getpid(), "port": port, "time": datetime.datetime.now().isoformat()}, f)
+    except Exception:
+        pass
+
+def release_instance_lock():
+    lock_file = DATA_DIR / "workpulse.lock"
+    try:
+        if lock_file.exists():
+            lock_file.unlink(missing_ok=True)
+    except Exception:
+        pass
 
 
 def main():
@@ -195,6 +285,7 @@ def main():
     args = parser.parse_args()
 
     check_prerequisites()
+    acquire_instance_lock(args.port)
 
     # Ensure runtime data and logs directories exist in ROOT_DIR
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -232,7 +323,7 @@ def main():
         else:
             msg = (
                 "WorkPulse backend JAR was not found.\n\n"
-                "Please make sure 'workpulse-backend-0.2.0.jar' is located in the "
+                "Please make sure 'workpulse-backend-0.2.1.jar' is located in the "
                 "'backend/target' folder or in the same directory as WorkPulse.exe."
             )
             show_fatal_error("WorkPulse - Missing Backend JAR", msg)
@@ -249,13 +340,20 @@ def main():
         stderr=subprocess.STDOUT,
         creationflags=creation_flags,
     )
+    if sys.platform == "win32" and hasattr(backend_proc, "_handle"):
+        assign_process_to_job(backend_proc._handle)
 
     collector_agent = None
     collector_thread = None
+    _shutdown_done = False
 
     def shutdown_services():
-        nonlocal collector_agent, backend_proc
+        nonlocal collector_agent, backend_proc, _shutdown_done
+        if _shutdown_done:
+            return
+        _shutdown_done = True
         print("\n[INFO] Shutting down WorkPulse...")
+        release_instance_lock()
         if collector_agent:
             print("[INFO] Terminating collector agent...")
             try:
@@ -276,7 +374,7 @@ def main():
 
     try:
         backend_url = f"http://localhost:{args.port}"
-        if not wait_for_backend(f"{backend_url}/api/control/status", timeout=50):
+        if not wait_for_backend(f"{backend_url}/api/control/status", timeout=180, proc=backend_proc):
             print("[ERROR] Backend failed to start within timeout. See logs/backend.log.")
             shutdown_services()
             sys.exit(1)

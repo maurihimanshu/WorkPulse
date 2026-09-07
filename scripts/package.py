@@ -17,7 +17,7 @@ import tarfile
 import zipfile
 from pathlib import Path
 
-VERSION = os.environ.get("RELEASE_VERSION", "0.2.0")
+VERSION = os.environ.get("RELEASE_VERSION", "0.2.1")
 if len(sys.argv) > 1 and sys.argv[1].strip():
     raw_v = sys.argv[1].strip()
     VERSION = raw_v.lstrip("v") if raw_v.startswith("v") else raw_v

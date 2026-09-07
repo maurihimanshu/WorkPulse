@@ -15,10 +15,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class ControlController {
 
     private final IngestionService ingestionService;
+    private final com.workpulse.service.SseStreamService sseStreamService;
     private final AtomicBoolean isMonitoring = new AtomicBoolean(true);
 
-    public ControlController(IngestionService ingestionService) {
+    public ControlController(IngestionService ingestionService, com.workpulse.service.SseStreamService sseStreamService) {
         this.ingestionService = ingestionService;
+        this.sseStreamService = sseStreamService;
     }
 
     @GetMapping("/status")
@@ -41,6 +43,7 @@ public class ControlController {
         isMonitoring.set(newState);
         Map<String, Object> resp = new HashMap<>();
         resp.put("isMonitoring", newState);
+        sseStreamService.broadcast("control", resp);
         return ResponseEntity.ok(resp);
     }
 }
