@@ -5,6 +5,7 @@ unsent telemetry items to a local SQLite database (.outbox.db) and dispatching
 them asynchronously in the background.
 """
 
+import contextlib
 import json
 import logging
 import sqlite3
@@ -30,16 +31,21 @@ class OutboxSpooler:
         self._lock = threading.Lock()
         self._init_db()
 
-    def _get_connection(self) -> sqlite3.Connection:
+    @contextlib.contextmanager
+    def _connection(self):
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(str(self.db_path), timeout=5.0)
         conn.execute("PRAGMA journal_mode=WAL;")
         conn.execute("PRAGMA synchronous=NORMAL;")
-        return conn
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     def _init_db(self):
         with self._lock:
-            with self._get_connection() as conn:
+            with self._connection() as conn:
                 conn.execute(
                     """
                     CREATE TABLE IF NOT EXISTS outbox (
@@ -59,7 +65,7 @@ class OutboxSpooler:
         payload_str = json.dumps(payload)
         with self._lock:
             try:
-                with self._get_connection() as conn:
+                with self._connection() as conn:
                     conn.execute(
                         "INSERT INTO outbox (id, endpoint, payload) VALUES (?, ?, ?)",
                         (item_id, endpoint, payload_str),
@@ -87,7 +93,7 @@ class OutboxSpooler:
         items = []
         with self._lock:
             try:
-                with self._get_connection() as conn:
+                with self._connection() as conn:
                     cursor = conn.cursor()
                     cursor.execute(
                         "SELECT id, endpoint, payload, retry_count FROM outbox ORDER BY created_at ASC LIMIT ?",
@@ -111,7 +117,7 @@ class OutboxSpooler:
                 failed = True
                 with self._lock:
                     try:
-                        with self._get_connection() as conn:
+                        with self._connection() as conn:
                             conn.execute(
                                 "UPDATE outbox SET retry_count = retry_count + 1 WHERE id = ?",
                                 (item_id,),
@@ -124,7 +130,7 @@ class OutboxSpooler:
         if success_ids:
             with self._lock:
                 try:
-                    with self._get_connection() as conn:
+                    with self._connection() as conn:
                         placeholders = ",".join("?" for _ in success_ids)
                         conn.execute(f"DELETE FROM outbox WHERE id IN ({placeholders})", success_ids)
                 except Exception as e:

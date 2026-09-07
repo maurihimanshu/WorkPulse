@@ -49,6 +49,47 @@ class CollectorAgent:
         self.spool_db = PROJECT_ROOT / 'data' / '.outbox.db'
         self.spooler = OutboxSpooler(self.spool_db, self.api_url)
 
+    @property
+    def outbox(self):
+        """Compatibility property for outbox items."""
+        try:
+            with self.spooler._lock:
+                with self.spooler._connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT payload FROM outbox ORDER BY created_at ASC")
+                    rows = cursor.fetchall()
+                    return [json.loads(r[0]) for r in rows]
+        except Exception:
+            return []
+
+    @outbox.setter
+    def outbox(self, items):
+        """Compatibility setter to load test items into spooler."""
+        try:
+            with self.spooler._lock:
+                with self.spooler._connection() as conn:
+                    conn.execute("DELETE FROM outbox")
+            for item in items:
+                self.spooler.enqueue('/api/ingest/activity', item)
+        except Exception:
+            pass
+
+    def _flush_outbox(self):
+        """Drain spooler items (compatibility method)."""
+        # If _post_json is mocked on agent, delegate spooler's post to it
+        def _delivery_proxy(endpoint, payload_str):
+            try:
+                payload = json.loads(payload_str)
+                return self._post_json(endpoint, payload)
+            except Exception:
+                return False
+        old_post = self.spooler._post_json
+        self.spooler._post_json = _delivery_proxy
+        try:
+            self.spooler._drain_batch()
+        finally:
+            self.spooler._post_json = old_post
+
     def _post_json(self, endpoint: str, payload: dict) -> bool:
         url = f'{self.api_url}{endpoint}'
         data = json.dumps(payload).encode('utf-8')
