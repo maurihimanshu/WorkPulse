@@ -48,6 +48,7 @@ def test_collector_agent_initialization():
 
 def test_collector_outbox_buffering():
     agent = CollectorAgent(api_url="http://localhost:9999", idle_threshold=60.0)
+    agent.outbox = []
     # Mock _post_json to simulate failure (offline backend)
     agent._post_json = MagicMock(return_value=False)
     agent.current_app = "test.exe"
