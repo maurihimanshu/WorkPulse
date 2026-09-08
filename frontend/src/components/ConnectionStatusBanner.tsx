@@ -1,6 +1,6 @@
 import React from 'react';
 import { ConnectionStatus } from '../hooks/useLiveStream';
-import { Radio, RefreshCw, AlertCircle } from 'lucide-react';
+import { RefreshCw, AlertCircle } from 'lucide-react';
 
 interface ConnectionStatusBannerProps {
   status: ConnectionStatus;

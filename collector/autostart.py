@@ -19,6 +19,9 @@ RUN_KEY_PATH = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
 def get_default_command() -> str:
     """Construct the command line string to run WorkPulse silently on boot."""
+    if getattr(sys, "frozen", False):
+        return f'"{sys.executable}" --autostart'
+
     root_dir = Path(__file__).parent.parent.resolve()
     run_py = root_dir / "run.py"
 
@@ -43,7 +46,9 @@ def is_autostart_enabled() -> bool:
             import winreg
             with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY_PATH, 0, winreg.KEY_READ) as key:
                 try:
-                    winreg.QueryValueEx(key, APP_NAME)
+                    val, _ = winreg.QueryValueEx(key, APP_NAME)
+                    if getattr(sys, "frozen", False) and "run.py" in str(val):
+                        enable_autostart()
                     return True
                 except FileNotFoundError:
                     return False

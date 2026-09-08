@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Sliders, Plus, Trash2, Database, Save, CheckCircle, ShieldCheck, KeyRound } from 'lucide-react';
+import { Sliders, Plus, Trash2, Database, Save, CheckCircle, RefreshCw, Sparkles, Download, ExternalLink } from 'lucide-react';
 import { api } from '../api';
-import { Category } from '../types';
+import { Category, UpdateInfo } from '../types';
 
 export const Settings: React.FC = () => {
   const [settings, setSettings] = useState<Record<string, string>>({});
@@ -10,10 +10,9 @@ export const Settings: React.FC = () => {
   const [newCatColor, setNewCatColor] = useState('#3b82f6');
   const [newCatPattern, setNewCatPattern] = useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
-
-  useEffect(() => {
-    loadSettingsAndCategories();
-  }, []);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [updateChecked, setUpdateChecked] = useState(false);
 
   const loadSettingsAndCategories = async () => {
     try {
@@ -24,6 +23,30 @@ export const Settings: React.FC = () => {
       console.error('Failed to load settings:', e);
     }
   };
+
+  const handleCheckUpdate = async (force = true) => {
+    try {
+      setCheckingUpdate(true);
+      const info = await api.checkUpdate(force);
+      setUpdateInfo(info);
+      setUpdateChecked(true);
+    } catch (e) {
+      console.error('Failed to check for updates:', e);
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSettingsAndCategories();
+    // Check update on initial settings visit
+    api.checkUpdate(false).then((info) => {
+      setUpdateInfo(info);
+      if (info.hasUpdate) {
+        setUpdateChecked(true);
+      }
+    }).catch(() => {});
+  }, []);
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -232,6 +255,126 @@ export const Settings: React.FC = () => {
             <span>Add Rule</span>
           </button>
         </form>
+      </div>
+
+      {/* Software Updates & Version Management */}
+      <div className="glass-panel" style={{ padding: '1.5rem', borderColor: 'rgba(59, 130, 246, 0.25)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)' }}>
+              <Sparkles size={18} color="#3b82f6" />
+              <span>Software Version &amp; Updates</span>
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: '0.25rem 0 0 0' }}>
+              Current installed version: <strong style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>v{updateInfo?.currentVersion || '0.2.1'}</strong>
+            </p>
+          </div>
+
+          <button
+            onClick={() => handleCheckUpdate(true)}
+            disabled={checkingUpdate}
+            className="btn btn-secondary"
+            style={{ fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: checkingUpdate ? 'not-allowed' : 'pointer' }}
+          >
+            <RefreshCw size={14} className={checkingUpdate ? 'animate-spin' : ''} />
+            <span>{checkingUpdate ? 'Checking GitHub...' : 'Check for Updates'}</span>
+          </button>
+        </div>
+
+        {/* Update status results */}
+        {updateInfo?.hasUpdate ? (
+          <div
+            style={{
+              marginTop: '1rem',
+              padding: '1.25rem',
+              borderRadius: '12px',
+              backgroundColor: 'rgba(59, 130, 246, 0.08)',
+              border: '1px solid rgba(59, 130, 246, 0.25)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#60a5fa' }}>
+                  🚀 New Version Available: v{updateInfo.latestVersion}
+                </span>
+                <span
+                  style={{
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    color: '#10b981',
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    padding: '0.15rem 0.45rem',
+                    borderRadius: '4px',
+                  }}
+                >
+                  Recommended
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <a
+                  href={updateInfo.downloadUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-primary"
+                  style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', textDecoration: 'none' }}
+                >
+                  <Download size={14} />
+                  <span>Download Update (.exe)</span>
+                </a>
+                <a
+                  href={updateInfo.releaseUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', textDecoration: 'none' }}
+                >
+                  <ExternalLink size={14} />
+                  <span>View Release</span>
+                </a>
+              </div>
+            </div>
+
+            {updateInfo.releaseNotes && (
+              <div
+                style={{
+                  fontSize: '0.78rem',
+                  color: 'var(--text-secondary)',
+                  lineHeight: '1.45',
+                  maxHeight: '120px',
+                  overflowY: 'auto',
+                  padding: '0.65rem 0.85rem',
+                  backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                  borderRadius: '6px',
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
+                {updateInfo.releaseNotes}
+              </div>
+            )}
+          </div>
+        ) : updateChecked ? (
+          <div
+            style={{
+              marginTop: '0.75rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              fontSize: '0.82rem',
+              color: '#10b981',
+              padding: '0.65rem 0.85rem',
+              borderRadius: '8px',
+              backgroundColor: 'rgba(16, 185, 129, 0.08)',
+              border: '1px solid rgba(16, 185, 129, 0.2)',
+            }}
+          >
+            <CheckCircle size={16} color="#10b981" />
+            <span>WorkPulse is up to date. You are running the latest version.</span>
+          </div>
+        ) : null}
       </div>
 
       {/* Database Storage Management */}

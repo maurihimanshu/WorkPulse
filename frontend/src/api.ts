@@ -9,7 +9,7 @@ import {
   UserProfile,
 } from './types';
 
-const API_BASE = window.location.port === '5173' ? 'http://localhost:9876/api' : '/api';
+const API_BASE = '/api';
 
 export const api = {
   async getHeartbeat(): Promise<Heartbeat> {
@@ -49,9 +49,10 @@ export const api = {
     return res.json();
   },
 
-  async getHourly(date?: string): Promise<HourlyStat[]> {
+  async getHourly(startDate?: string, endDate?: string): Promise<HourlyStat[]> {
     const params = new URLSearchParams();
-    if (date) params.set('date', date);
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
     const res = await fetch(`${API_BASE}/stats/hourly?${params.toString()}`);
     if (!res.ok) throw new Error('Failed to fetch hourly stats');
     return res.json();
@@ -130,11 +131,13 @@ export const api = {
   },
 
   async deleteActivity(id: string): Promise<void> {
-    await fetch(`${API_BASE}/activities/${id}`, { method: 'DELETE' });
+    const res = await fetch(`${API_BASE}/activities/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Failed to delete activity');
   },
 
   async clearAllActivities(): Promise<void> {
-    await fetch(`${API_BASE}/activities`, { method: 'DELETE' });
+    const res = await fetch(`${API_BASE}/activities`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Failed to clear activities');
   },
 
   async getProfile(): Promise<UserProfile> {
@@ -186,7 +189,8 @@ export const api = {
   },
 
   async deleteCategory(id: string): Promise<void> {
-    await fetch(`${API_BASE}/settings/categories/${id}`, { method: 'DELETE' });
+    const res = await fetch(`${API_BASE}/settings/categories/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Failed to delete category');
   },
 
   async getCurrentResources(): Promise<import('./types').SystemResourceSummary> {
@@ -198,6 +202,12 @@ export const api = {
   async getResourceHogs(): Promise<import('./types').ProcessResource[]> {
     const res = await fetch(`${API_BASE}/stats/resources/hogs`);
     if (!res.ok) throw new Error('Failed to fetch resource hogs');
+    return res.json();
+  },
+
+  async checkUpdate(force = false): Promise<import('./types').UpdateInfo> {
+    const res = await fetch(`${API_BASE}/update/check?force=${force}`);
+    if (!res.ok) throw new Error('Failed to check for updates');
     return res.json();
   },
 };

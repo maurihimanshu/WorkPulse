@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Clock,
   Zap,
@@ -6,12 +6,10 @@ import {
   TrendingUp,
   Monitor,
   Layers,
-  Sparkles,
   LayoutGrid,
   BarChart3,
   BrainCircuit,
   Cpu,
-  Terminal,
 } from 'lucide-react';
 import { api } from '../api';
 import {
@@ -31,13 +29,17 @@ import { WellbeingCard } from '../components/WellbeingCard';
 import { ProcessResourceMonitor } from '../components/ProcessResourceMonitor';
 import { CategoryDistributionCard } from '../components/CategoryDistributionCard';
 import { useLiveStream } from '../hooks/useLiveStream';
+import { formatLocalDate } from '../utils/dateUtils';
 
 interface DashboardProps {
-  heartbeat: Heartbeat | null;
+  heartbeat?: Heartbeat | null;
+  liveStream?: ReturnType<typeof useLiveStream>;
+  targetHours?: number;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ heartbeat }) => {
-  const liveStream = useLiveStream();
+export const Dashboard: React.FC<DashboardProps> = ({ heartbeat, liveStream: propLiveStream, targetHours = 6 }) => {
+  const fallbackLiveStream = useLiveStream();
+  const liveStream = propLiveStream || fallbackLiveStream;
   const currentHeartbeat = liveStream.heartbeat || heartbeat;
 
   const [range, setRange] = useState<'today' | 'yesterday' | '7days' | 'month'>('today');
@@ -50,34 +52,31 @@ export const Dashboard: React.FC<DashboardProps> = ({ heartbeat }) => {
   const [projects, setProjects] = useState<ProjectBreakdown[]>([]);
   const [wellbeing, setWellbeing] = useState<WellbeingStats | null>(null);
   const [exporting, setExporting] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   const cacheRef = useRef<Record<string, { time: number; data: any }>>({});
 
-  const getDateRange = () => {
+  const getDateRange = useCallback(() => {
     const now = new Date();
-    const formatDate = (d: Date) => d.toISOString().split('T')[0];
-
     if (range === 'today') {
-      const today = formatDate(now);
+      const today = formatLocalDate(now);
       return { start: today, end: today };
     } else if (range === 'yesterday') {
       const y = new Date(now);
       y.setDate(y.getDate() - 1);
-      const yStr = formatDate(y);
+      const yStr = formatLocalDate(y);
       return { start: yStr, end: yStr };
     } else if (range === '7days') {
       const past = new Date(now);
       past.setDate(past.getDate() - 7);
-      return { start: formatDate(past), end: formatDate(now) };
+      return { start: formatLocalDate(past), end: formatLocalDate(now) };
     } else {
       const past = new Date(now);
       past.setDate(past.getDate() - 30);
-      return { start: formatDate(past), end: formatDate(now) };
+      return { start: formatLocalDate(past), end: formatLocalDate(now) };
     }
-  };
+  }, [range]);
 
-  const loadData = async (force = false) => {
+  const loadData = useCallback(async (force = false) => {
     const { start, end } = getDateRange();
     const cacheKey = `${range}_${start}_${end}`;
     const cached = cacheRef.current[cacheKey];
@@ -92,7 +91,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ heartbeat }) => {
       setDeepWork(d.deepWork);
       setProjects(d.projects);
       setWellbeing(d.wellbeing);
-      setLoading(false);
       return;
     }
 
@@ -100,7 +98,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ heartbeat }) => {
       const [sumRes, appsRes, hourlyRes, catRes, dwRes, projRes, wbRes] = await Promise.all([
         api.getSummary(start, end),
         api.getTopApps(start, end, 8),
-        api.getHourly(start),
+        api.getHourly(start, end),
         api.getCategoryStats(start, end),
         api.getDeepWork(start, end),
         api.getProjects(start, end, 6),
@@ -128,10 +126,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ heartbeat }) => {
       };
     } catch (e) {
       console.error('Error loading dashboard data:', e);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [getDateRange, range]);
 
   const handleExport = async () => {
     try {
@@ -149,7 +145,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ heartbeat }) => {
     loadData();
     const interval = setInterval(loadData, 5000);
     return () => clearInterval(interval);
-  }, [range]);
+  }, [loadData]);
 
   const formatSeconds = (sec: number) => {
     if (!sec || sec <= 0) return '0m';
@@ -172,6 +168,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ heartbeat }) => {
         onExport={handleExport}
         exporting={exporting}
         activeSeconds={summary?.totalActiveSeconds || 0}
+        targetHours={targetHours}
         connectionStatus={liveStream.connectionStatus}
         lastSeen={liveStream.lastSeen}
       />

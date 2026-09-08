@@ -17,8 +17,7 @@ public interface ActivityRepository extends JpaRepository<Activity, String> {
     List<Activity> findByStartTimeBetweenOrderByStartTimeDesc(LocalDateTime start, LocalDateTime end);
 
     @Query("SELECT a FROM Activity a WHERE a.startTime >= :start AND a.startTime <= :end " +
-           "AND (:search IS NULL OR LOWER(a.appName) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(a.windowTitle) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-           "ORDER BY a.startTime DESC")
+           "AND (:search IS NULL OR LOWER(a.appName) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(a.windowTitle) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<Activity> findActivitiesPaged(
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end,
@@ -39,10 +38,8 @@ public interface ActivityRepository extends JpaRepository<Activity, String> {
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end);
 
-    @Query("SELECT FUNCTION('strftime', '%H', a.startTime), SUM(a.activeTime), SUM(a.idleTime) " +
-           "FROM Activity a WHERE a.startTime >= :start AND a.startTime <= :end " +
-           "GROUP BY FUNCTION('strftime', '%H', a.startTime) ORDER BY FUNCTION('strftime', '%H', a.startTime) ASC")
-    List<Object[]> findHourlyDistribution(
-            @Param("start") LocalDateTime start,
-            @Param("end") LocalDateTime end);
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query("DELETE FROM Activity a WHERE a.startTime < :cutoff")
+    void deleteByStartTimeBefore(@Param("cutoff") LocalDateTime cutoff);
 }
