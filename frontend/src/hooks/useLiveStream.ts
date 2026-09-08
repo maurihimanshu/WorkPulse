@@ -11,7 +11,7 @@ interface LiveStreamState {
   lastSeen: Date | null;
 }
 
-const API_BASE = window.location.port === '5173' ? 'http://localhost:9876/api' : '/api';
+const API_BASE = '/api';
 
 export function useLiveStream(): LiveStreamState {
   const [heartbeat, setHeartbeat] = useState<Heartbeat | null>(null);

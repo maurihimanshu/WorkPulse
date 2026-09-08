@@ -85,6 +85,9 @@ class WorkPulseTrayApp:
         self.status_dialog = None
         self.is_monitoring = True
         self._running = True
+        self.start_time = time.time()
+        self.last_user_app = "Detecting..."
+        self.last_user_title = "..."
 
     def get_backend_status(self) -> dict:
         """Fetch current telemetry and monitoring status from backend."""
@@ -225,12 +228,19 @@ class WorkPulseTrayApp:
         self.lbl_title = tk.Label(title_row, text="...", font=("Segoe UI", 8), fg="#cbd5e1", bg="#1e293b", wraplength=230, justify=tk.RIGHT)
         self.lbl_title.pack(side=tk.RIGHT)
 
-        # Active Session row
+        # WorkPulse Session row
         dur_row = tk.Frame(card, bg="#1e293b")
         dur_row.pack(fill=tk.X, pady=2)
-        tk.Label(dur_row, text="Session Time:", font=("Segoe UI", 9), fg="#94a3b8", bg="#1e293b").pack(side=tk.LEFT)
-        self.lbl_session = tk.Label(dur_row, text="0s", font=("Segoe UI", 9), fg="#f8fafc", bg="#1e293b")
+        tk.Label(dur_row, text="WorkPulse Session:", font=("Segoe UI", 9), fg="#94a3b8", bg="#1e293b").pack(side=tk.LEFT)
+        self.lbl_session = tk.Label(dur_row, text="0s", font=("Segoe UI", 9, "bold"), fg="#38bdf8", bg="#1e293b")
         self.lbl_session.pack(side=tk.RIGHT)
+
+        # Today's Active Work row
+        work_row = tk.Frame(card, bg="#1e293b")
+        work_row.pack(fill=tk.X, pady=2)
+        tk.Label(work_row, text="Today's Work Time:", font=("Segoe UI", 9), fg="#94a3b8", bg="#1e293b").pack(side=tk.LEFT)
+        self.lbl_today_work = tk.Label(work_row, text="0s", font=("Segoe UI", 9, "bold"), fg="#34d399", bg="#1e293b")
+        self.lbl_today_work.pack(side=tk.RIGHT)
 
         # 3. Primary Action Buttons
         btn_frame = tk.Frame(dialog, bg="#0f172a", padx=16, pady=8)
@@ -349,18 +359,43 @@ class WorkPulseTrayApp:
             data = self.get_backend_status()
             app = data.get("currentApp", "Unknown")
             title = data.get("currentTitle", "Unknown")
+
+            # Avoid displaying WorkPulse itself as the active app when tray dialog gains focus
+            if app.lower() in ("workpulse.exe", "workpulse", "python.exe", "pythonw.exe") and "workpulse" in title.lower():
+                app = self.last_user_app
+                title = self.last_user_title
+            else:
+                if app != "Unknown":
+                    self.last_user_app = app
+                    self.last_user_title = title
+
             if len(title) > 36:
                 title = title[:33] + "..."
-            sec = int(data.get("currentSessionActiveSeconds", 0.0))
 
-            mins, s = divmod(sec, 60)
+            # 1. WorkPulse Session Time (uptime of WorkPulse application session)
+            wp_session_sec = int(data.get("workpulseSessionSeconds", 0.0))
+            if wp_session_sec <= 0:
+                wp_session_sec = int(time.time() - self.start_time)
+            mins, s = divmod(wp_session_sec, 60)
             hours, m = divmod(mins, 60)
-            duration_str = f"{hours}h {m}m {s}s" if hours > 0 else f"{m}m {s}s"
+            wp_session_str = f"{hours}h {m}m {s}s" if hours > 0 else f"{m}m {s}s"
+
+            # 2. Today's Total Active Work Time tracked by WorkPulse
+            today_work_sec = int(data.get("todayActiveSeconds", 0.0))
+            tw_mins, tw_s = divmod(today_work_sec, 60)
+            tw_hours, tw_m = divmod(tw_mins, 60)
+            today_work_str = f"{tw_hours}h {tw_m}m {tw_s}s" if tw_hours > 0 else f"{tw_m}m {tw_s}s"
 
             self.lbl_app.config(text=app)
             self.lbl_title.config(text=title)
-            self.lbl_session.config(text=duration_str)
+            self.lbl_session.config(text=wp_session_str)
+            self.lbl_today_work.config(text=today_work_str)
             self._update_dialog_ui_state()
+
+            # Update tray icon hover tooltip
+            if self.icon:
+                status_text = "Active" if self.is_monitoring else "Paused"
+                self.icon.title = f"{APP_TITLE} v{VERSION} [{status_text}] | Session: {wp_session_str} | Today: {today_work_str}"
 
         # Schedule next refresh every 1.5 seconds
         if self.tk_root and self._running:

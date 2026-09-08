@@ -12,7 +12,9 @@ import {
   Pause,
   Play,
   ShieldCheck,
+  Sparkles,
 } from 'lucide-react';
+import { UpdateInfo } from '../types';
 
 interface SidebarProps {
   currentTab: string;
@@ -24,6 +26,8 @@ interface SidebarProps {
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
   currentApp: string;
+  updateInfo?: UpdateInfo | null;
+  onOpenUpdateModal?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -36,6 +40,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   theme,
   onToggleTheme,
   currentApp,
+  updateInfo,
+  onOpenUpdateModal,
 }) => {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, shortcut: 'Ctrl+1' },
@@ -83,20 +89,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 width: '36px',
                 height: '36px',
                 borderRadius: '10px',
-                background: 'linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)',
+                background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 boxShadow: '0 4px 12px rgba(59, 130, 246, 0.35)',
                 flexShrink: 0,
+                position: 'relative',
+                cursor: collapsed && updateInfo?.hasUpdate ? 'pointer' : 'default',
               }}
+              onClick={collapsed && updateInfo?.hasUpdate ? onOpenUpdateModal : undefined}
+              title={collapsed && updateInfo?.hasUpdate ? `Update available: v${updateInfo.latestVersion}` : undefined}
             >
               <Activity size={20} color="#ffffff" />
+              {collapsed && updateInfo?.hasUpdate && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: '-2px',
+                    right: '-2px',
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: '#10b981',
+                    border: '2px solid var(--bg-surface)',
+                  }}
+                />
+              )}
             </div>
 
             {!collapsed && (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
                   <span style={{ fontWeight: 800, fontSize: '1.1rem', letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
                     WorkPulse
                   </span>
@@ -113,6 +137,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   >
                     v0.2.1
                   </span>
+                  {updateInfo?.hasUpdate && (
+                    <button
+                      onClick={onOpenUpdateModal}
+                      title={`Update available: v${updateInfo.latestVersion}. Click to view details.`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.2rem',
+                        fontSize: '0.6rem',
+                        fontWeight: 700,
+                        color: '#10b981',
+                        background: 'rgba(16, 185, 129, 0.18)',
+                        border: '1px solid rgba(16, 185, 129, 0.4)',
+                        borderRadius: '999px',
+                        padding: '0.1rem 0.4rem',
+                        cursor: 'pointer',
+                        lineHeight: 1,
+                      }}
+                    >
+                      <Sparkles size={9} />
+                      <span>Update</span>
+                    </button>
+                  )}
                 </div>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Enterprise Telemetry</span>
               </div>

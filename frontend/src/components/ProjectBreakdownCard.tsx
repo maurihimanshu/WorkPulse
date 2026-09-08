@@ -14,7 +14,7 @@ export const ProjectBreakdownCard: React.FC<ProjectBreakdownCardProps> = ({ proj
     return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
   };
 
-  const getProjectIcon = (name: string, category: string) => {
+  const getProjectIcon = (name: string, _category: string) => {
     const lower = name.toLowerCase();
     if (lower.includes('meet') || lower.includes('collab') || lower.includes('slack')) {
       return <MessageSquare size={14} color="#06b6d4" />;

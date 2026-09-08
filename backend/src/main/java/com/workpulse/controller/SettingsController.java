@@ -16,10 +16,12 @@ public class SettingsController {
 
     private final SettingsService settingsService;
     private final CategoryRepository categoryRepository;
+    private final com.workpulse.service.IngestionService ingestionService;
 
-    public SettingsController(SettingsService settingsService, CategoryRepository categoryRepository) {
+    public SettingsController(SettingsService settingsService, CategoryRepository categoryRepository, com.workpulse.service.IngestionService ingestionService) {
         this.settingsService = settingsService;
         this.categoryRepository = categoryRepository;
+        this.ingestionService = ingestionService;
     }
 
     @GetMapping
@@ -43,12 +45,15 @@ public class SettingsController {
         if (category.getId() == null || category.getId().trim().isEmpty()) {
             category.setId("cat-" + System.currentTimeMillis());
         }
-        return ResponseEntity.ok(categoryRepository.save(category));
+        Category saved = categoryRepository.save(category);
+        ingestionService.refreshCategoryCache();
+        return ResponseEntity.ok(saved);
     }
 
     @DeleteMapping("/categories/{id}")
     public ResponseEntity<Void> deleteCategory(@PathVariable String id) {
         categoryRepository.deleteById(id);
+        ingestionService.refreshCategoryCache();
         return ResponseEntity.noContent().build();
     }
 }

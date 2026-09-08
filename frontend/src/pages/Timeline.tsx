@@ -1,42 +1,42 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Trash2, ChevronLeft, ChevronRight, RefreshCw, Calendar, Clock, Layers } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Search, Trash2, ChevronLeft, ChevronRight, RefreshCw, X } from 'lucide-react';
 import { api } from '../api';
 import { Activity } from '../types';
+import { formatLocalDate } from '../utils/dateUtils';
 
 export const Timeline: React.FC = () => {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [search, setSearch] = useState('');
+  const [activeSearch, setActiveSearch] = useState('');
   const [dateFilter, setDateFilter] = useState<'today' | 'yesterday' | '7days' | 'all'>('today');
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const getDateRange = () => {
+  const getDateRange = useCallback(() => {
     const now = new Date();
-    const formatDate = (d: Date) => d.toISOString().split('T')[0];
-
     if (dateFilter === 'today') {
-      const today = formatDate(now);
+      const today = formatLocalDate(now);
       return { start: today, end: today };
     } else if (dateFilter === 'yesterday') {
       const y = new Date(now);
       y.setDate(y.getDate() - 1);
-      const yStr = formatDate(y);
+      const yStr = formatLocalDate(y);
       return { start: yStr, end: yStr };
     } else if (dateFilter === '7days') {
       const past = new Date(now);
       past.setDate(past.getDate() - 7);
-      return { start: formatDate(past), end: formatDate(now) };
+      return { start: formatLocalDate(past), end: formatLocalDate(now) };
     }
     return { start: undefined, end: undefined };
-  };
+  }, [dateFilter]);
 
-  const loadActivities = async () => {
+  const loadActivities = useCallback(async () => {
     setLoading(true);
     try {
       const { start, end } = getDateRange();
-      const res = await api.getActivities(start, end, search, page, 20);
+      const res = await api.getActivities(start, end, activeSearch, page, 20);
       setActivities(res.content || []);
       setTotalPages(res.totalPages || 0);
       setTotalElements(res.totalElements || 0);
@@ -45,16 +45,22 @@ export const Timeline: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getDateRange, activeSearch, page]);
 
   useEffect(() => {
     loadActivities();
-  }, [page, dateFilter]);
+  }, [loadActivities]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(0);
-    loadActivities();
+    setActiveSearch(search.trim());
+  };
+
+  const handleClearSearch = () => {
+    setSearch('');
+    setActiveSearch('');
+    setPage(0);
   };
 
   const handleDelete = async (id: string) => {
@@ -77,6 +83,10 @@ export const Timeline: React.FC = () => {
   const formatDateTime = (iso: string) => {
     if (!iso) return '-';
     const d = new Date(iso);
+    if (isNaN(d.getTime())) return '-';
+    if (dateFilter === '7days' || dateFilter === 'all') {
+      return d.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   };
 
@@ -123,11 +133,33 @@ export const Timeline: React.FC = () => {
               <input
                 type="text"
                 className="input"
-                style={{ width: '100%', paddingLeft: '2.4rem', fontSize: '0.82rem' }}
+                style={{ width: '100%', paddingLeft: '2.4rem', paddingRight: search ? '2.4rem' : '1rem', fontSize: '0.82rem' }}
                 placeholder="Search by application or window title..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
+              {search && (
+                <button
+                  type="button"
+                  onClick={handleClearSearch}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '2px',
+                  }}
+                  title="Clear search"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
             <button type="submit" className="btn btn-primary" style={{ fontSize: '0.82rem' }}>
               Search

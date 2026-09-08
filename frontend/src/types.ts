@@ -121,3 +121,17 @@ export interface SystemResourceSummary {
   resourceHogsCount: number;
   topProcesses: ProcessResource[];
 }
+
+export interface UpdateInfo {
+  currentVersion: string;
+  latestVersion: string;
+  hasUpdate: boolean;
+  releaseName: string;
+  releaseNotes: string;
+  publishedAt: string;
+  releaseUrl: string;
+  downloadUrl: string;
+  assetName: string;
+  assetSize: number;
+  checkedAt: string;
+}

@@ -1,3 +1,49 @@
+# ⚡ WorkPulse v0.2.1 Release Notes
+
+> **Maintenance & Reliability Release**  
+> *Windows Autostart Restoration, Analytics Engine Hardening, and Subsystem Optimization*
+
+WorkPulse v0.2.1 delivers critical fixes for system startup on Windows, addresses edge-case bugs in telemetry streak calculations, enhances ingestion throughput, and ensures clean local date handling.
+
+---
+
+## 🌟 What's New & Fixed in v0.2.1
+
+### 1. 🚀 Windows Autostart & Installation Fix
+* **Fixed Executable Crash on Boot**: Resolved an issue where standalone `.exe` distributions configured autostart with a trailing script argument (`WorkPulse.exe run.py --autostart`). The compiled PyInstaller executable was failing on `argparse` with `unrecognized arguments`, silently aborting during Windows login.
+* **Direct Binary Execution**: Updated `get_default_command()` in `collector/autostart.py` so frozen executables register `"{sys.executable}" --autostart` directly without extraneous `.py` references.
+* **Resilient CLI Parser & Self-Healing**: Enhanced `run.py` argument parsing to absorb legacy script arguments gracefully via `parse_known_args()`, and added automatic detection and self-healing for legacy Windows registry `Run` entries.
+* **Installer Defaults**: Enabled Windows Startup (`startup`) task by default in the Inno Setup installer script (`installer/WorkPulse.iss`).
+
+### 2. 🧠 Analytics & Deep Work Engine Hardening
+* **Deep Work Detection Overhaul**: Fixed a bug where deep work time always reported as zero. Individual collector flushes range from 5s to 300s, preventing any single activity from meeting a raw 20-minute threshold. The calculation now aggregates contiguous productive focus intervals ($\le 180\text{s}$ gap), accurately capturing streaks $\ge 1200\text{s}$ (20 minutes).
+* **Weighted Productivity Scoring**: Replaced the crude active vs. idle ratio with a formula incorporating category-level classifications (`isProductive`) and custom productivity weights.
+* **Dynamic Wellbeing Hours**: Replaced hardcoded 09:00–18:00 working hours with the user's custom start and end hours configured in their profile.
+* **Date-Filtered Hourly Distribution**: Overloaded `/api/stats/hourly` to support arbitrary date ranges (`startDate` and `endDate`).
+* **Locale-Safe CSV Exports**: Enforced `Locale.US` in floating-point formatting to prevent decimal comma separators from breaking CSV exports on international systems.
+
+### 3. ⚡ Ingestion Throughput & Storage Reliability
+* **Thread-Safe In-Memory Category Cache**: Eliminated N+1 database queries during high-frequency collector ingestion bursts using a cached `CopyOnWriteArrayList<Category>` in `IngestionService`, automatically invalidated upon category updates.
+* **Bounded Metric Drain**: Refactored process resource flushing in `ProcessResourceService` to drain in bounded batches of up to 1,000 items, eliminating unbounded memory spikes under load.
+* **Automated Data Retention**: Added a daily `@Scheduled` background cleanup task in `SettingsService` that purges raw activity records older than the user-configured retention period (`retentionDays`, default 90 days).
+* **JPA Open-In-View Hygiene**: Disabled `spring.jpa.open-in-view` in `application.yml` to prevent warning spam and enforce strict transaction boundaries.
+
+### 4. 🎨 Frontend & UX Enhancements
+* **Timezone-Safe Date Utility**: Replaced `toISOString().split('T')[0]` with local calendar date calculation (`formatLocalDate`) across all views, eliminating date shifting bugs during evening work sessions in local timezones.
+* **Unified Live SSE Stream**: Lifted `useLiveStream` connection management to the root `App` component to eliminate redundant stream reconnections across page transitions.
+* **Dynamic Daily Goal Integration**: Connected profile daily goal settings directly into dashboard goal progress rings with instantaneous updates.
+* **Resource Monitor Controls**: Connected manual refresh and unified background process polling with real-time stream status.
+
+---
+
+## 📦 Updated Executable Details (v0.2.1)
+
+| Package | Platform | Size | SHA-256 Checksum |
+|---|---|---|---|
+| **`WorkPulse.exe`** | Windows 10 / 11 (Standalone x64) | 84.82 MB | `880988AC9A497B42E3E4B125EFB7E7FFE902762CCFE7EEBCD1D08DF51EC5A4DB` |
+
+---
+
 # ⚡ WorkPulse v0.2.0 Release Notes
 
 > **First Official Open Source Release**  

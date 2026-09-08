@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Cpu,
   HardDrive,
@@ -6,8 +6,6 @@ import {
   Activity,
   Search,
   RefreshCw,
-  Layers,
-  Sparkles,
   Zap,
 } from 'lucide-react';
 import { api } from '../api';
@@ -18,31 +16,33 @@ interface ProcessResourceMonitorProps {
 }
 
 export const ProcessResourceMonitor: React.FC<ProcessResourceMonitorProps> = ({ liveResources }) => {
-  const [data, setData] = useState<SystemResourceSummary | null>(liveResources || null);
+  const [prevLiveResources, setPrevLiveResources] = useState<SystemResourceSummary | null | undefined>(liveResources);
+  const [fallbackData, setFallbackData] = useState<SystemResourceSummary | null>(null);
   const [loading, setLoading] = useState<boolean>(!liveResources);
   const [filterType, setFilterType] = useState<'all' | 'foreground' | 'background' | 'hogs'>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
-  useEffect(() => {
+  if (liveResources !== prevLiveResources) {
+    setPrevLiveResources(liveResources);
     if (liveResources) {
-      setData(liveResources);
       setLastUpdated(new Date());
-      setLoading(false);
     }
-  }, [liveResources]);
+  }
 
-  const fetchResources = async () => {
+  const data = liveResources || fallbackData;
+
+  const fetchResources = useCallback(async () => {
     try {
       const res = await api.getCurrentResources();
-      setData(res);
+      setFallbackData(res);
       setLastUpdated(new Date());
     } catch (e) {
       console.error('Failed to load process resources:', e);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (!liveResources) {
@@ -50,7 +50,7 @@ export const ProcessResourceMonitor: React.FC<ProcessResourceMonitorProps> = ({ 
       const interval = setInterval(fetchResources, 8000);
       return () => clearInterval(interval);
     }
-  }, [liveResources]);
+  }, [liveResources, fetchResources]);
 
   const formatMemory = (mb: number) => {
     if (mb >= 1024) {

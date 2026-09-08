@@ -129,19 +129,26 @@ public class ProcessResourceService {
             return;
         }
 
-        List<ProcessMetric> batch = new ArrayList<>();
-        ProcessMetric m;
-        while ((m = metricBuffer.poll()) != null && batch.size() < 250) {
-            batch.add(m);
-        }
-
-        if (!batch.isEmpty()) {
-            try {
-                processMetricRepository.saveAll(batch);
-                logger.debug("Flushed {} process metrics to database.", batch.size());
-            } catch (Exception e) {
-                logger.warn("Failed to batch save process metrics: {}", e.getMessage());
+        int totalFlushed = 0;
+        while (!metricBuffer.isEmpty() && totalFlushed < 1000) {
+            List<ProcessMetric> batch = new ArrayList<>();
+            ProcessMetric m;
+            while (batch.size() < 250 && (m = metricBuffer.poll()) != null) {
+                batch.add(m);
             }
+
+            if (!batch.isEmpty()) {
+                try {
+                    processMetricRepository.saveAll(batch);
+                    totalFlushed += batch.size();
+                } catch (Exception e) {
+                    logger.warn("Failed to batch save process metrics: {}", e.getMessage());
+                    break;
+                }
+            }
+        }
+        if (totalFlushed > 0) {
+            logger.debug("Flushed {} process metrics to database.", totalFlushed);
         }
     }
 
