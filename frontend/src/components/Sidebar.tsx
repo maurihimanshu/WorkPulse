@@ -135,7 +135,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       fontWeight: 600,
                     }}
                   >
-                    v0.2.1
+                    v{updateInfo?.currentVersion || '0.2.2'}
                   </span>
                   {updateInfo?.hasUpdate && (
                     <button

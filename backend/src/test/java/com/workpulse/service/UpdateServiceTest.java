@@ -48,4 +48,14 @@ class UpdateServiceTest {
         assertEquals("0.2.1", info.getCurrentVersion());
         assertFalse(info.isHasUpdate());
     }
+
+    @Test
+    void testGetUpdateInfoCurrentVersion() {
+        UpdateService updateService = new UpdateService(new ObjectMapper());
+        updateService.setCurrentVersion("0.2.2");
+        updateService.setGithubRepo("maurihimanshu/WorkPulse-NonExistent-Repo-Testing");
+        UpdateInfoDto info = updateService.checkForUpdate(false);
+        assertNotNull(info);
+        assertEquals("0.2.2", info.getCurrentVersion());
+    }
 }

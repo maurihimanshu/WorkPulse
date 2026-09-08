@@ -339,7 +339,7 @@ def main():
         else:
             msg = (
                 "WorkPulse backend JAR was not found.\n\n"
-                "Please make sure 'workpulse-backend-0.2.1.jar' is located in the "
+                "Please make sure 'workpulse-backend-0.2.2.jar' is located in the "
                 "'backend/target' folder or in the same directory as WorkPulse.exe."
             )
             show_fatal_error("WorkPulse - Missing Backend JAR", msg)

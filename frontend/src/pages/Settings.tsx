@@ -266,7 +266,7 @@ export const Settings: React.FC = () => {
               <span>Software Version &amp; Updates</span>
             </h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: '0.25rem 0 0 0' }}>
-              Current installed version: <strong style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>v{updateInfo?.currentVersion || '0.2.1'}</strong>
+              Current installed version: <strong style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>v{updateInfo?.currentVersion || '0.2.2'}</strong>
             </p>
           </div>
 

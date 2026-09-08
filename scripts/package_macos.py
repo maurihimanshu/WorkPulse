@@ -17,7 +17,7 @@ import subprocess
 import sys
 
 APP_NAME = "WorkPulse"
-VERSION = sys.argv[1].lstrip("v") if len(sys.argv) > 1 else "0.2.1"
+VERSION = sys.argv[1].lstrip("v") if len(sys.argv) > 1 else "0.2.2"
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 DIST_DIR = ROOT_DIR / "dist"

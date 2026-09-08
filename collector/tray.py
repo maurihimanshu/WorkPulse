@@ -42,7 +42,7 @@ from collector.autostart import disable_autostart, enable_autostart, is_autostar
 
 logger = logging.getLogger("WorkPulseTray")
 
-VERSION = "0.2.1"
+VERSION = "0.2.2"
 APP_TITLE = "WorkPulse"
 
 

@@ -13,7 +13,7 @@
 
     <groupId>com.workpulse</groupId>
     <artifactId>workpulse-backend</artifactId>
-    <version>0.2.1</version>
+    <version>0.2.2</version>
     <name>workpulse-backend</name>
     <description>WorkPulse Intelligent Activity &amp; Productivity Monitoring Backend</description>
 
