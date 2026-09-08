@@ -20,6 +20,7 @@ public class IngestionService {
     private final CategoryRepository categoryRepository;
     private final SseStreamService sseStreamService;
     private final AtomicReference<HeartbeatDto> latestHeartbeat = new AtomicReference<>(new HeartbeatDto());
+    private final List<Category> categoryCache = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     public IngestionService(ActivityRepository activityRepository,
                             CategoryRepository categoryRepository,
@@ -28,6 +29,7 @@ public class IngestionService {
         this.categoryRepository = categoryRepository;
         this.sseStreamService = sseStreamService;
         initDefaultCategories();
+        refreshCategoryCache();
     }
 
     private void initDefaultCategories() {
@@ -40,6 +42,18 @@ public class IngestionService {
                 new Category("cat-media", "Entertainment & Media", "#EF4444", "spotify,netflix,youtube,vlc,steam,game", false, 0.1)
             ));
         }
+    }
+
+    public void refreshCategoryCache() {
+        categoryCache.clear();
+        categoryCache.addAll(categoryRepository.findAll());
+    }
+
+    public List<Category> getCachedCategories() {
+        if (categoryCache.isEmpty()) {
+            refreshCategoryCache();
+        }
+        return new java.util.ArrayList<>(categoryCache);
     }
 
     public Activity ingestActivity(IngestActivityDto dto) {
@@ -73,8 +87,7 @@ public class IngestionService {
 
     private String resolveCategory(String appName, String title) {
         String search = ((appName != null ? appName : "") + " " + (title != null ? title : "")).toLowerCase();
-        List<Category> categories = categoryRepository.findAll();
-        for (Category cat : categories) {
+        for (Category cat : categoryCache) {
             if (cat.getMatchPattern() != null) {
                 for (String p : cat.getMatchPattern().split(",")) {
                     if (!p.trim().isEmpty() && search.contains(p.trim().toLowerCase())) {

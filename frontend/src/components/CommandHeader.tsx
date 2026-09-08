@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, Calendar, Sparkles } from 'lucide-react';
+import { Download, Sparkles } from 'lucide-react';
 import { ConnectionStatusBanner } from './ConnectionStatusBanner';
 import { GoalProgressRing } from './GoalProgressRing';
 import { ConnectionStatus } from '../hooks/useLiveStream';
@@ -10,6 +10,7 @@ interface CommandHeaderProps {
   onExport: () => void;
   exporting: boolean;
   activeSeconds: number;
+  targetHours?: number;
   connectionStatus: ConnectionStatus;
   lastSeen: Date | null;
 }
@@ -20,6 +21,7 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
   onExport,
   exporting,
   activeSeconds,
+  targetHours = 6,
   connectionStatus,
   lastSeen,
 }) => {
@@ -89,7 +91,7 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
 
       {/* Actions: Goal Ring + Date Range Selector + Export */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-        <GoalProgressRing activeSeconds={activeSeconds} />
+        <GoalProgressRing activeSeconds={activeSeconds} targetHours={targetHours} />
 
         {/* Date Filter Segmented Switch */}
         <div

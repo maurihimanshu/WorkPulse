@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { User, Target, Clock, Save, CheckCircle, Award, Sparkles } from 'lucide-react';
+import { Save, CheckCircle, Award } from 'lucide-react';
 import { api } from '../api';
 import { UserProfile } from '../types';
+import { formatLocalDate } from '../utils/dateUtils';
 
-export const Profile: React.FC = () => {
+interface ProfileProps {
+  onProfileUpdated?: (profile: UserProfile) => void;
+}
+
+export const Profile: React.FC<ProfileProps> = ({ onProfileUpdated }) => {
   const [profile, setProfile] = useState<UserProfile>({
     id: 'default',
     name: 'WorkPulse User',
@@ -17,13 +22,9 @@ export const Profile: React.FC = () => {
   const [todayActiveSeconds, setTodayActiveSeconds] = useState(0);
   const [saved, setSaved] = useState(false);
 
-  useEffect(() => {
-    loadProfileAndTodayStats();
-  }, []);
-
   const loadProfileAndTodayStats = async () => {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = formatLocalDate(new Date());
       const [p, sum] = await Promise.all([api.getProfile(), api.getSummary(today, today)]);
       if (p) setProfile(p);
       if (sum) setTodayActiveSeconds(sum.totalActiveSeconds || 0);
@@ -32,11 +33,18 @@ export const Profile: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    loadProfileAndTodayStats();
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const updated = await api.updateProfile(profile);
       setProfile(updated);
+      if (onProfileUpdated) {
+        onProfileUpdated(updated);
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (e) {

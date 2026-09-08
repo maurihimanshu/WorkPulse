@@ -282,7 +282,23 @@ def main():
         action="store_true",
         help="Open status dialog immediately on launch",
     )
-    args = parser.parse_args()
+    parser.add_argument("script", nargs="?", default=None, help=argparse.SUPPRESS)
+    args, _ = parser.parse_known_args()
+
+    # Automatically heal legacy Windows autostart registry entry if present
+    if sys.platform == "win32" and IS_FROZEN:
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run", 0, winreg.KEY_READ | winreg.KEY_SET_VALUE) as key:
+                try:
+                    val, _ = winreg.QueryValueEx(key, "WorkPulse")
+                    if "run.py" in str(val):
+                        clean_cmd = f'"{sys.executable}" --autostart'
+                        winreg.SetValueEx(key, "WorkPulse", 0, winreg.REG_SZ, clean_cmd)
+                except FileNotFoundError:
+                    pass
+        except Exception:
+            pass
 
     check_prerequisites()
     acquire_instance_lock(args.port)
@@ -323,7 +339,7 @@ def main():
         else:
             msg = (
                 "WorkPulse backend JAR was not found.\n\n"
-                "Please make sure 'workpulse-backend-0.2.1.jar' is located in the "
+                "Please make sure 'workpulse-backend-0.2.2.jar' is located in the "
                 "'backend/target' folder or in the same directory as WorkPulse.exe."
             )
             show_fatal_error("WorkPulse - Missing Backend JAR", msg)

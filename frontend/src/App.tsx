@@ -4,40 +4,49 @@ import { Dashboard } from './pages/Dashboard';
 import { Timeline } from './pages/Timeline';
 import { Settings } from './pages/Settings';
 import { Profile } from './pages/Profile';
+import { UpdateModal } from './components/UpdateModal';
 import { api } from './api';
-import { Heartbeat } from './types';
+import { UserProfile, UpdateInfo } from './types';
+import { useLiveStream } from './hooks/useLiveStream';
 
 export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [isMonitoring, setIsMonitoring] = useState(true);
-  const [heartbeat, setHeartbeat] = useState<Heartbeat | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
 
-  // Poll heartbeat and control status
+  const liveStream = useLiveStream();
+
+  // Load user profile and check for updates on startup
   useEffect(() => {
-    const fetchStatus = async () => {
+    const fetchProfile = async () => {
       try {
-        const hb = await api.getHeartbeat();
-        setHeartbeat(hb);
-      } catch (e) {
-        // Backend not ready yet
-      }
-
-      try {
-        const ctrl = await api.getControlStatus();
-        setIsMonitoring(ctrl.isMonitoring);
-      } catch (e) {
-        // Backend not ready yet
+        const p = await api.getProfile();
+        setUserProfile(p);
+        if (p?.theme === 'light' || p?.theme === 'dark') {
+          setTheme(p.theme);
+        }
+      } catch (err) {
+        console.debug('Could not load user profile on boot:', err);
       }
     };
+    fetchProfile();
 
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 1500);
-    return () => clearInterval(interval);
+    // Check for software updates on initial boot
+    const checkUpdates = async () => {
+      try {
+        const info = await api.checkUpdate(false);
+        setUpdateInfo(info);
+      } catch (err) {
+        console.debug('Could not check for software updates on boot:', err);
+      }
+    };
+    checkUpdates();
   }, []);
 
-  // Global Keyboard shortcuts: Ctrl+1..4 for navigation
+  // Global Keyboard shortcuts: Ctrl+1..4 for navigation, Ctrl+B for sidebar
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
@@ -66,8 +75,7 @@ export const App: React.FC = () => {
 
   const handleToggleMonitoring = async () => {
     try {
-      const res = await api.toggleMonitoring();
-      setIsMonitoring(res.isMonitoring);
+      await api.toggleMonitoring();
     } catch (e) {
       console.error('Failed to toggle monitoring:', e);
     }
@@ -90,19 +98,33 @@ export const App: React.FC = () => {
         setCurrentTab={setCurrentTab}
         collapsed={sidebarCollapsed}
         setCollapsed={setSidebarCollapsed}
-        isMonitoring={isMonitoring}
+        isMonitoring={liveStream.isMonitoring}
         onToggleMonitoring={handleToggleMonitoring}
         theme={theme}
         onToggleTheme={handleToggleTheme}
-        currentApp={heartbeat?.appName || ''}
+        currentApp={liveStream.heartbeat?.appName || ''}
+        updateInfo={updateInfo}
+        onOpenUpdateModal={() => setShowUpdateModal(true)}
       />
 
       <div className="main-viewport">
-        {currentTab === 'dashboard' && <Dashboard heartbeat={heartbeat} />}
+        {currentTab === 'dashboard' && (
+          <Dashboard
+            heartbeat={liveStream.heartbeat}
+            liveStream={liveStream}
+            targetHours={userProfile?.dailyGoalHours || 6}
+          />
+        )}
         {currentTab === 'timeline' && <Timeline />}
         {currentTab === 'settings' && <Settings />}
-        {currentTab === 'profile' && <Profile />}
+        {currentTab === 'profile' && <Profile onProfileUpdated={setUserProfile} />}
       </div>
+
+      <UpdateModal
+        updateInfo={updateInfo}
+        isOpen={showUpdateModal}
+        onClose={() => setShowUpdateModal(false)}
+      />
     </div>
   );
 };

@@ -1,9 +1,10 @@
 @echo off
-title WorkPulse v0.2.1 - Local Runner
+title WorkPulse v0.2.2 - Local Runner
+color 0b
 cd /d "%~dp0"
 
 echo ========================================================
-echo   Starting WorkPulse v0.2.1 (Direct Local Test)
+echo   Starting WorkPulse v0.2.2 (Direct Local Test)
 echo ========================================================
 echo.
 

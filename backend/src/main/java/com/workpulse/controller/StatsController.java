@@ -40,8 +40,12 @@ public class StatsController {
 
     @GetMapping("/hourly")
     public ResponseEntity<List<HourlyStatsDto>> getHourly(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return ResponseEntity.ok(statsService.getHourlyDistribution(date));
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        LocalDate start = (startDate != null) ? startDate : date;
+        LocalDate end = (endDate != null) ? endDate : start;
+        return ResponseEntity.ok(statsService.getHourlyDistribution(start, end));
     }
 
     @GetMapping("/categories")

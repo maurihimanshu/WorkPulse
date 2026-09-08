@@ -20,6 +20,12 @@ def test_get_default_command():
     assert "--autostart" in cmd
 
 
+def test_get_default_command_frozen():
+    with patch.object(sys, "frozen", True, create=True), patch.object(sys, "executable", "C:\\Program Files\\WorkPulse\\WorkPulse.exe"):
+        cmd = get_default_command()
+        assert cmd == '"C:\\Program Files\\WorkPulse\\WorkPulse.exe" --autostart'
+
+
 def test_windows_autostart_check_and_toggle():
     with patch("sys.platform", "win32"):
         mock_winreg = MagicMock()

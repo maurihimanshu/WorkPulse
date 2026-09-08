@@ -2,7 +2,7 @@
 ; Commercial-grade installer with desktop shortcut, start menu entry, autostart, and uninstaller.
 
 #ifndef AppVersion
-#define AppVersion "0.2.1"
+#define AppVersion "0.2.2"
 #endif
 
 #define AppName "WorkPulse"
@@ -39,7 +39,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "startup"; Description: "Automatically launch WorkPulse on Windows boot (silent tray mode)"; GroupDescription: "System Integration:"; Flags: unchecked
+Name: "startup"; Description: "Automatically launch WorkPulse on Windows boot (silent tray mode)"; GroupDescription: "System Integration:"
 
 [Files]
 Source: "..\dist\staging_windows-x64\WorkPulse-v{#AppVersion}-windows-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs

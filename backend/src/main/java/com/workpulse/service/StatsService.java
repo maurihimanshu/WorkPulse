@@ -19,9 +19,13 @@ import java.util.*;
 public class StatsService {
 
     private final ActivityRepository activityRepository;
+    private final ProfileService profileService;
+    private final IngestionService ingestionService;
 
-    public StatsService(ActivityRepository activityRepository) {
+    public StatsService(ActivityRepository activityRepository, ProfileService profileService, IngestionService ingestionService) {
         this.activityRepository = activityRepository;
+        this.profileService = profileService;
+        this.ingestionService = ingestionService;
     }
 
     public StatsSummaryDto getSummary(LocalDate startDate, LocalDate endDate) {
@@ -33,16 +37,31 @@ public class StatsService {
         double totalIdle = 0.0;
         Map<String, Double> appTotals = new HashMap<>();
 
+        Map<String, Double> catMultipliers = new HashMap<>();
+        if (ingestionService != null) {
+            for (com.workpulse.model.Category c : ingestionService.getCachedCategories()) {
+                if (c.getName() != null) {
+                    double mult = Boolean.TRUE.equals(c.getProductive()) ? (c.getWeight() != null ? c.getWeight() : 1.0) : 0.1;
+                    catMultipliers.put(c.getName().toLowerCase(), mult);
+                }
+            }
+        }
+
+        double weightedProductiveTime = 0.0;
         for (Activity a : list) {
             double active = a.getActiveTime() != null ? a.getActiveTime() : 0.0;
             double idle = a.getIdleTime() != null ? a.getIdleTime() : 0.0;
             totalActive += active;
             totalIdle += idle;
             appTotals.merge(a.getAppName(), active, Double::sum);
+
+            String cat = a.getCategory() != null ? a.getCategory().toLowerCase() : "uncategorized";
+            double mult = catMultipliers.getOrDefault(cat, 0.7);
+            weightedProductiveTime += (active * mult);
         }
 
         double totalTracked = totalActive + totalIdle;
-        int score = totalTracked > 0 ? (int) Math.round((totalActive / totalTracked) * 100.0) : 100;
+        int score = totalTracked > 0 ? (int) Math.min(100, Math.max(0, Math.round((weightedProductiveTime / totalTracked) * 100.0))) : 100;
         String topApp = appTotals.entrySet().stream()
                 .max(Map.Entry.comparingByValue())
                 .map(Map.Entry::getKey)
@@ -79,9 +98,14 @@ public class StatsService {
     }
 
     public List<HourlyStatsDto> getHourlyDistribution(LocalDate date) {
-        LocalDate target = (date != null) ? date : LocalDate.now();
-        LocalDateTime start = target.atStartOfDay();
-        LocalDateTime end = target.atTime(LocalTime.MAX);
+        return getHourlyDistribution(date, date);
+    }
+
+    public List<HourlyStatsDto> getHourlyDistribution(LocalDate startDate, LocalDate endDate) {
+        LocalDate startTarget = (startDate != null) ? startDate : LocalDate.now();
+        LocalDate endTarget = (endDate != null) ? endDate : startTarget;
+        LocalDateTime start = startTarget.atStartOfDay();
+        LocalDateTime end = endTarget.atTime(LocalTime.MAX);
 
         List<Activity> list = activityRepository.findByStartTimeBetweenOrderByStartTimeDesc(start, end);
         double[] activeByHour = new double[24];
@@ -146,6 +170,7 @@ public class StatsService {
         String lastApp = null;
         LocalDateTime lastEnd = null;
 
+        boolean streakIsDeep = false;
         for (Activity a : chronological) {
             double active = a.getActiveTime() != null ? a.getActiveTime() : 0.0;
             totalActive += active;
@@ -161,6 +186,7 @@ public class StatsService {
             } else {
                 currentStreak = active;
                 currentStreakApp = a.getAppName();
+                streakIsDeep = false;
             }
 
             if (currentStreak > maxStreak) {
@@ -168,9 +194,14 @@ public class StatsService {
                 maxStreakApp = currentStreakApp;
             }
 
-            // Deep work session: continuous active block >= 20 minutes (1200 sec)
-            if (active >= 1200.0) {
-                deepWorkSeconds += active;
+            // Deep work session: continuous active streak >= 20 minutes (1200 sec)
+            if (currentStreak >= 1200.0) {
+                if (!streakIsDeep) {
+                    deepWorkSeconds += currentStreak;
+                    streakIsDeep = true;
+                } else {
+                    deepWorkSeconds += active;
+                }
             }
 
             lastApp = a.getAppName();
@@ -310,12 +341,16 @@ public class StatsService {
         chronological.sort(Comparator.comparing(Activity::getStartTime));
 
         LocalDateTime lastTime = null;
+        com.workpulse.model.UserProfile profile = profileService != null ? profileService.getProfile() : null;
+        int workStart = (profile != null && profile.getWorkStartHour() != null) ? profile.getWorkStartHour() : 9;
+        int workEnd = (profile != null && profile.getWorkEndHour() != null) ? profile.getWorkEndHour() : 18;
+
         for (Activity a : chronological) {
             double active = a.getActiveTime() != null ? a.getActiveTime() : 0.0;
             int hour = a.getStartTime().getHour();
 
-            // Core Hours: 9:00 AM to 6:00 PM (18:00)
-            if (hour >= 9 && hour < 18) {
+            // Core Hours: according to user profile
+            if (hour >= workStart && hour < workEnd) {
                 coreHoursSeconds += active;
             } else {
                 overtimeSeconds += active;
@@ -380,7 +415,7 @@ public class StatsService {
             double activeMin = a.getActiveTime() != null ? Math.round((a.getActiveTime() / 60.0) * 10.0) / 10.0 : 0.0;
             double idleMin = a.getIdleTime() != null ? Math.round((a.getIdleTime() / 60.0) * 10.0) / 10.0 : 0.0;
 
-            sb.append(String.format("%s,%s,%s,%s,%.1f,%.1f\n", time, app, title, cat, activeMin, idleMin));
+            sb.append(String.format(Locale.US, "%s,%s,%s,%s,%.1f,%.1f\n", time, app, title, cat, activeMin, idleMin));
         }
         return sb.toString();
     }
