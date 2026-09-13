@@ -5,4 +5,4 @@ pytest>=7.0.0
 pytest-cov>=4.0.0
 pytest-mock>=3.10.0
 pystray>=0.19.5
-Pillow>=10.0.0
+Pillow>=12.3.0
