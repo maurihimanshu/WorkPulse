@@ -89,7 +89,7 @@ jobs:
         run: choco install innosetup --yes --no-progress
 
       - name: Download Backend JAR Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: backend-jar
           path: backend/target
@@ -149,7 +149,7 @@ jobs:
           pip install pyinstaller psutil cryptography python-dotenv pystray pillow
 
       - name: Download Backend JAR Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: backend-jar
           path: backend/target
@@ -207,7 +207,7 @@ jobs:
           pip install pyinstaller psutil cryptography python-dotenv pystray pillow pyobjc-framework-Cocoa
 
       - name: Download Backend JAR Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: backend-jar
           path: backend/target
@@ -253,19 +253,19 @@ jobs:
           python-version: '3.11'
 
       - name: Download Windows Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: windows-dist
           path: dist
 
       - name: Download Linux Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: linux-dist
           path: dist
 
       - name: Download macOS Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: macos-dist
           path: dist
