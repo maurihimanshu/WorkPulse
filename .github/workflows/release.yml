@@ -279,7 +279,7 @@ jobs:
         run: python scripts/clean_release_assets.py "${{ github.repository }}" "${{ github.event.inputs.version || github.ref_name }}"
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event.inputs.version || github.ref_name }}
           name: WorkPulse ${{ github.event.inputs.version || github.ref_name }}
