@@ -55,7 +55,7 @@ jobs:
         run: mvn clean package -DskipTests
 
       - name: Upload Backend JAR Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: backend-jar
           path: backend/target/workpulse-backend-*.jar
@@ -114,7 +114,7 @@ jobs:
         run: python scripts/package.py ${{ github.event.inputs.version || github.ref_name }} windows-x64
 
       - name: Upload Windows Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-dist
           path: |
@@ -174,7 +174,7 @@ jobs:
         run: python scripts/package_linux.py ${{ github.event.inputs.version || github.ref_name }}
 
       - name: Upload Linux Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-dist
           path: |
@@ -232,7 +232,7 @@ jobs:
         run: python scripts/package_macos.py ${{ github.event.inputs.version || github.ref_name }}
 
       - name: Upload macOS Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-dist
           path: |
